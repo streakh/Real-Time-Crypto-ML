@@ -1,0 +1,21 @@
+# Environment / secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Data (too large for git)
+data/
+
+# MLflow local runs
+mlruns/
+
+# IDE
+.vscode/
+.idea/
