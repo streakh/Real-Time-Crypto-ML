@@ -69,7 +69,9 @@ services:
     restart: on-failure
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.12.2
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mlflow
     container_name: mlflow
     ports:
       - "5001:5000"
@@ -81,7 +83,6 @@ services:
       --port 5000
     volumes:
       - ../mlruns:/mlruns
-    # Cap resource usage for the MLflow server
     deploy:
       resources:
         limits:

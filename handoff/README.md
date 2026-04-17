@@ -96,3 +96,22 @@ handoff/
 ├── requirements.txt
 └── README.md                 This file
 ```
+
+---
+
+## Week 4 Interim Deliverables
+
+### Working API
+Run the FastAPI service locally:
+
+```bash
+uvicorn api.main:app --reload --port 8000
+```
+
+### Sample curl for /predict
+
+```bash
+curl -X POST "http://127.0.0.1:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d @handoff/data_sample/sample.json
+```
