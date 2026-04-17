@@ -26,9 +26,7 @@ from starlette.responses import Response
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-MODEL_PATH = os.getenv(
-    "MODEL_PATH", "models/artifacts/lr_pipeline.pkl"
-)
+MODEL_PATH = os.getenv("MODEL_PATH", "models/artifacts/lr_pipeline.pkl")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1.0")
 
 # ---------------------------------------------------------------------------
@@ -81,8 +79,10 @@ REQUEST_LATENCY = Histogram(
 # Pydantic schemas
 # ---------------------------------------------------------------------------
 
+
 class TickRow(BaseModel):
     """A single observation with the 7 required features."""
+
     log_return: float
     spread_bps: float
     vol_60s: float
@@ -101,6 +101,7 @@ class PredictResponse(BaseModel):
     model_variant: str
     version: str
     ts: str
+
 
 # ---------------------------------------------------------------------------
 # App
@@ -139,9 +140,7 @@ def predict(req: PredictRequest):
 
     try:
         # Build feature matrix in the correct column order
-        X = np.array(
-            [[getattr(row, col) for col in FEATURE_COLS] for row in req.rows]
-        )
+        X = np.array([[getattr(row, col) for col in FEATURE_COLS] for row in req.rows])
 
         # Probability of class 1 (volatility spike)
         y_prob = PIPELINE.predict_proba(X)[:, 1]

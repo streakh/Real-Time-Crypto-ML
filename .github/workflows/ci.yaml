@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linters
+        run: pip install black ruff
+
+      - name: Black (format check)
+        run: black --check api/ tests/
+
+      - name: Ruff (lint check)
+        run: ruff check api/ tests/
+
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install API dependencies
+        run: pip install -r docker/requirements.api.txt requests
+
+      - name: Start API and run smoke tests
+        run: |
+          MODEL_PATH=handoff/models/artifacts/lr_pipeline.pkl \
+            uvicorn api.main:app --host 127.0.0.1 --port 8000 &
+          sleep 3
+          python tests/test_api.py
