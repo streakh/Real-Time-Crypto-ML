@@ -3,6 +3,10 @@ BTC Volatility Spike Detector — FastAPI Service
 
 Loads the trained Logistic Regression pipeline and serves predictions
 via a REST API with /health, /predict, /version, and /metrics endpoints.
+
+Supports a rollback toggle via MODEL_VARIANT=ml|baseline:
+  - ml       (default) — sklearn LR pipeline; score = predict_proba[:, 1]
+  - baseline           — deterministic z-style rule on vol_60s vs threshold
 """
 
 import os
@@ -17,6 +21,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_client import (
     Counter,
+    Gauge,
     Histogram,
     generate_latest,
     CONTENT_TYPE_LATEST,
@@ -28,6 +33,13 @@ from starlette.responses import Response
 # ---------------------------------------------------------------------------
 MODEL_PATH = os.getenv("MODEL_PATH", "models/artifacts/lr_pipeline.pkl")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1.0")
+MODEL_VARIANT = os.getenv("MODEL_VARIANT", "ml").lower()
+BASELINE_VOL_THRESHOLD = float(os.getenv("BASELINE_VOL_THRESHOLD", "0.000048"))
+
+if MODEL_VARIANT not in {"ml", "baseline"}:
+    raise ValueError(
+        f"MODEL_VARIANT must be 'ml' or 'baseline', got {MODEL_VARIANT!r}"
+    )
 
 # ---------------------------------------------------------------------------
 # Load model at startup
@@ -56,24 +68,33 @@ try:
         .strip()
     )
 except Exception:
-    GIT_SHA = "unknown"
+    GIT_SHA = os.getenv("GIT_SHA", "unknown")
 
 # ---------------------------------------------------------------------------
-# Prometheus metrics
+# Prometheus metrics — labelled by model_variant so panels can split / overlay
 # ---------------------------------------------------------------------------
 REQUEST_COUNT = Counter(
     "predict_requests_total",
     "Total prediction requests",
+    ["model_variant"],
 )
 REQUEST_ERRORS = Counter(
     "predict_errors_total",
     "Total failed prediction requests",
+    ["model_variant"],
 )
 REQUEST_LATENCY = Histogram(
     "predict_latency_seconds",
     "Prediction request latency in seconds",
+    ["model_variant"],
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.8, 1.0],
 )
+ACTIVE_VARIANT = Gauge(
+    "model_variant_active",
+    "Currently active model variant (1 = active)",
+    ["model_variant"],
+)
+ACTIVE_VARIANT.labels(model_variant=MODEL_VARIANT).set(1)
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
@@ -104,6 +125,27 @@ class PredictResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Scoring backends
+# ---------------------------------------------------------------------------
+
+
+def _score_ml(rows: list[TickRow]) -> list[float]:
+    X = np.array([[getattr(row, col) for col in FEATURE_COLS] for row in rows])
+    y_prob = PIPELINE.predict_proba(X)[:, 1]
+    return [round(float(p), 6) for p in y_prob]
+
+
+def _score_baseline(rows: list[TickRow]) -> list[float]:
+    # Mirrors the labeling rule: a tick is "spiking" when its 60s realised
+    # volatility exceeds the same threshold used to generate training labels.
+    # Returns 1.0 / 0.0 so the response shape stays compatible with /predict.
+    return [1.0 if row.vol_60s > BASELINE_VOL_THRESHOLD else 0.0 for row in rows]
+
+
+SCORERS = {"ml": _score_ml, "baseline": _score_baseline}
+
+
+# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 app = FastAPI(title="BTC Volatility Spike Detector")
@@ -119,8 +161,10 @@ def version():
     return {
         "model": "lr_pipeline",
         "version": MODEL_VERSION,
+        "variant": MODEL_VARIANT,
         "sha": GIT_SHA,
         "tau": TAU,
+        "baseline_vol_threshold": BASELINE_VOL_THRESHOLD,
         "features": FEATURE_COLS,
     }
 
@@ -135,27 +179,21 @@ def metrics():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    REQUEST_COUNT.inc()
+    REQUEST_COUNT.labels(model_variant=MODEL_VARIANT).inc()
     start = time.perf_counter()
 
     try:
-        # Build feature matrix in the correct column order
-        X = np.array([[getattr(row, col) for col in FEATURE_COLS] for row in req.rows])
-
-        # Probability of class 1 (volatility spike)
-        y_prob = PIPELINE.predict_proba(X)[:, 1]
-
-        # Round scores for readability
-        scores = [round(float(p), 6) for p in y_prob]
-
+        scores = SCORERS[MODEL_VARIANT](req.rows)
         return PredictResponse(
             scores=scores,
-            model_variant="ml",
+            model_variant=MODEL_VARIANT,
             version=MODEL_VERSION,
             ts=datetime.now(timezone.utc).isoformat(),
         )
     except Exception as exc:
-        REQUEST_ERRORS.inc()
+        REQUEST_ERRORS.labels(model_variant=MODEL_VARIANT).inc()
         raise HTTPException(status_code=500, detail=str(exc))
     finally:
-        REQUEST_LATENCY.observe(time.perf_counter() - start)
+        REQUEST_LATENCY.labels(model_variant=MODEL_VARIANT).observe(
+            time.perf_counter() - start
+        )
