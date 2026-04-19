@@ -12,6 +12,12 @@ Single-page summary of the production system's measured performance against the 
 | Rollback time, ML → baseline | **< 10 s** | manual, fast | PASS |
 | Services up under `docker compose up -d` | **8 / 8** | 8 / 8 | PASS |
 
+## Live dashboard
+
+![Grafana dashboard — BTC Volatility Detector API](../handoff/docs/grafana_dashboard.png)
+
+Single screenshot covering the full rollback drill: both `ml` and `baseline` variants visible in the **Active model variant** stat, p95 / p50 latency well under the 800 ms SLO line, three load-test spikes in **Request rate by variant** (one `ml` → `baseline` flip → back to `ml`), zero errors across the whole sequence (the "No data" on the error-rate panel is the expected output of `rate()` over an empty counter), and the **Kafka consumer lag** panel showing the featurizer's group catching up after the burst. Dashboard JSON is at [`monitoring/grafana/dashboards/api.json`](../monitoring/grafana/dashboards/api.json).
+
 ## Latency
 
 Full methodology and percentiles in [`latency_report.md`](./latency_report.md). Highlights:
