@@ -29,14 +29,17 @@ Build a real-time crypto volatility detection system that ingests live BTC-USD t
 
 ---
 
-## Definition of Done (Week 4)
+## Definition of Done
 
-- [ ] `docker compose up -d` brings up Kafka, MLflow, and the API cleanly
-- [ ] All four endpoints (`/health`, `/predict`, `/version`, `/metrics`) return valid responses
-- [ ] 10-minute raw slice replayed through `/predict` with predictions logged
-- [ ] `team_charter.md` and `selection_rationale.md` committed to `docs/`
-- [ ] Architecture diagram committed to `docs/`
-- [ ] No secrets committed to the repo (`.env.example` only)
+- [x] `docker compose up -d` brings up Kafka, MLflow, the API, ingestor, featurizer, Prometheus, Grafana, and kafka-exporter cleanly
+- [x] All four endpoints (`/health`, `/predict`, `/version`, `/metrics`) return valid responses
+- [x] 10-minute raw slice replayed end-to-end through Kafka → features → API
+- [x] `team_charter.md` and `selection_rationale.md` committed to `docs/`
+- [x] Architecture diagram committed to `docs/`
+- [x] No secrets committed to the repo (`.env.example` only)
+- [x] CI pipeline (Black + Ruff + smoke test) passing
+- [x] Grafana dashboard, SLO doc, drift summary, runbook, latency report committed
+- [x] `MODEL_VARIANT=ml|baseline` rollback toggle wired through API + compose
 
 ---
 
