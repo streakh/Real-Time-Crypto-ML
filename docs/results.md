@@ -1,0 +1,66 @@
+# Results — BTC Volatility Spike Detector
+
+Single-page summary of the production system's measured performance against the SLOs in [`slo.md`](./slo.md).
+
+## Headline numbers
+
+| Dimension | Result | Target | Status |
+|---|---:|---:|:---:|
+| `/predict` latency p95 (single row) | **66.1 ms** | ≤ 800 ms | PASS (~12× headroom) |
+| `/predict` success rate (100-burst) | **100 %** (100 / 100) | ≥ 99.0 % | PASS |
+| Held-out test PR-AUC, ML vs baseline | **0.1459 vs 0.1340** | ML > baseline | PASS (+8.9 %) |
+| Rollback time, ML → baseline | **< 10 s** | manual, fast | PASS |
+| Services up under `docker compose up -d` | **8 / 8** | 8 / 8 | PASS |
+
+## Latency
+
+Full methodology and percentiles in [`latency_report.md`](./latency_report.md). Highlights:
+
+- 100 concurrent requests through `tests/load_test.py` against the running stack (Kafka, ingestor, featurizer, API, MLflow, Prometheus, Grafana, kafka-exporter all live).
+- p50 / p95 / p99 = 56.9 / 66.1 / 68.7 ms — the tight 12 ms spread shows the sklearn `predict_proba` call dominates and the path is essentially constant-time at this batch size.
+- Roughly **12× headroom** on the 800 ms p95 SLO, which leaves room for richer features or a heavier model without breaching the budget.
+
+## Uptime / availability
+
+We do not run a long-horizon uptime measurement (this is a coursework deployment, not a 24×7 service), so availability is reported as an **SLO with a recovery contract** rather than a measured number:
+
+- **Target:** 99.0 % monthly success rate on `/health` and `/predict` (≈ 7 h 18 min monthly error budget).
+- **Mechanism:** every container declares `restart: on-failure`; Kafka and the API both have healthchecks; `depends_on … condition: service_healthy` guarantees correct startup ordering.
+- **Recovery contract:** documented in [`runbook.md`](./runbook.md) — every common failure mode (Kafka volume corruption, ingestor restart loop, missing model artifact, Grafana "No data") has a 1-line recovery command and an expected outcome.
+- **Observability hooks:** the Grafana dashboard surfaces error rate per variant and Kafka consumer lag, so the on-call signal arrives before users do.
+
+A continuous-uptime number can be added later by pointing an external prober (e.g. an uptime check) at `/health`; the API and the Prometheus error counters are already wired for it.
+
+## Model performance vs baseline
+
+| Model | Validation PR-AUC | Test PR-AUC | Notes |
+|---|---:|---:|---|
+| Z-score baseline (`vol_60s > τ`) | n/a (rule-based) | **0.1340** | Deterministic threshold rule on rolling vol, used as both the science baseline and the production rollback target. |
+| Logistic Regression, Variant B (7 features) | best of ablation set | **0.1459** | Shipped artifact. Selection rationale and ablation table in [`handoff/SELECTED_BASE_NOTE.md`](../handoff/SELECTED_BASE_NOTE.md). |
+
+The same threshold rule lives in the API as `MODEL_VARIANT=baseline` (`api/main.py::_score_baseline`), so the science baseline and the production rollback path are the *same* code path — the rollback isn't a degraded approximation, it's the documented baseline.
+
+## Rollback verified end-to-end
+
+The `MODEL_VARIANT` toggle was exercised live:
+
+```bash
+MODEL_VARIANT=baseline docker compose up -d api
+curl -s http://localhost:8000/version | jq '.variant'   # → "baseline"
+
+MODEL_VARIANT=ml docker compose up -d api
+curl -s http://localhost:8000/version | jq '.variant'   # → "ml"
+```
+
+The Grafana **Active variant** stat panel (top-left of the API dashboard) flips within ~10 s of the next Prometheus scrape, and `predict_requests_total{model_variant=…}` cleanly partitions traffic by variant for post-hoc analysis.
+
+## Drift posture
+
+Full report in [`drift_summary.md`](./drift_summary.md). One-line version: 5 of 7 input features show distribution drift between the training reference and the held-out test slice, but the model still beats the baseline on PR-AUC because the **rank ordering** the LR coefficients depend on is preserved. The Evidently HTML lives at `handoff/reports/train_vs_test.html` and can be regenerated against fresh production features with `scripts/drift_report.py`.
+
+## What this means for production readiness
+
+- The **performance** budget (latency, success rate) is comfortably met.
+- The **reliability** budget is enforced by Compose healthchecks + restart policies + a documented runbook, but does not yet have a long-horizon measured uptime number.
+- The **model** earns its keep over the trivial baseline (+8.9 % test PR-AUC) and the rollback to that baseline is a one-environment-variable change with sub-10-second propagation.
+- Drift is **monitored**, not yet **alerted on** — a natural next step is wiring an Evidently scheduled job + a Prometheus alert rule on the dashboard's existing panels.
