@@ -37,9 +37,7 @@ MODEL_VARIANT = os.getenv("MODEL_VARIANT", "ml").lower()
 BASELINE_VOL_THRESHOLD = float(os.getenv("BASELINE_VOL_THRESHOLD", "0.000048"))
 
 if MODEL_VARIANT not in {"ml", "baseline"}:
-    raise ValueError(
-        f"MODEL_VARIANT must be 'ml' or 'baseline', got {MODEL_VARIANT!r}"
-    )
+    raise ValueError(f"MODEL_VARIANT must be 'ml' or 'baseline', got {MODEL_VARIANT!r}")
 
 # ---------------------------------------------------------------------------
 # Load model at startup
