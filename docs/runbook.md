@@ -27,6 +27,25 @@ curl -X POST http://localhost:8000/predict \
 python tests/load_test.py              # 100 burst requests, expect p95 < 800ms
 ```
 
+## Switch to live ingestion
+
+The default stack runs in **replay mode** (loops a 10-minute Coinbase capture). To stream live ticks from Coinbase's public WebSocket instead:
+
+```bash
+docker compose stop ingestor                              # stop the replay source
+docker compose --profile live up -d ws-ingestor           # start the live source
+docker logs -f ws-ingestor                                # confirm "[ticker] subscribed for BTC-USD → topic 'ticks.raw'"
+```
+
+Both ingestors publish to `ticks.raw`; run only one at a time. To revert:
+
+```bash
+docker compose stop ws-ingestor
+docker compose up -d ingestor
+```
+
+`ws_ingest.py` has exponential-backoff reconnect, a circuit breaker (exits non-zero after 10 consecutive failures so Compose's `restart: on-failure` rebuilds the connection), and sequence-gap logging for feed-integrity monitoring.
+
 ## Rollback (ML → baseline)
 
 When the ML variant misbehaves (latency burns budget, error spike, drift alert), fall back to the deterministic baseline:

@@ -14,6 +14,19 @@ curl -X POST http://localhost:8000/predict \
      -d @handoff/data_sample/sample.json
 ```
 
+## Replay vs live ingestion
+
+The default `docker compose up -d` runs the **replay** ingestor — loops a 10-minute Coinbase capture through Kafka at the original timestamps. Reproducible, no network dependency, what graders should run.
+
+To switch to **live** ingestion from Coinbase's public WebSocket (no API keys required, public ticker channel):
+
+```bash
+docker compose stop ingestor
+docker compose --profile live up -d ws-ingestor
+```
+
+Both services publish to the same `ticks.raw` topic, so run only one at a time. The featurizer, API, and monitoring stack are agnostic to the source — same Kafka payload schema either way.
+
 ## Endpoints & dashboards
 
 | Service | URL | Notes |

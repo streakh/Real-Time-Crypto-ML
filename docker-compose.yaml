@@ -127,6 +127,38 @@ services:
           cpus: "0.5"
     restart: on-failure
 
+  # ---- Live ingestor: Coinbase WebSocket → Kafka ticks.raw ----
+  # Opt-in via `docker compose --profile live up -d ws-ingestor`.
+  # Mutually exclusive with the replay `ingestor` service — both publish to
+  # ticks.raw, so run only one at a time.
+  ws-ingestor:
+    profiles: ["live"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: ws-ingestor
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      TOPIC_RAW: ticks.raw
+    command:
+      - python
+      - -u
+      - scripts/ws_ingest.py
+      - --pair
+      - BTC-USD
+      - --no-mirror
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    restart: on-failure
+
   # ---- Featurizer: ticks.raw → ticks.features + Parquet ----
   featurizer:
     build:

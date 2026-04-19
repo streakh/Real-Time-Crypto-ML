@@ -11,6 +11,30 @@ Single-page summary of the production system's measured performance against the 
 | Held-out test PR-AUC, ML vs baseline | **0.1459 vs 0.1340** | ML > baseline | PASS (+8.9 %) |
 | Rollback time, ML → baseline | **< 10 s** | manual, fast | PASS |
 | Services up under `docker compose up -d` | **8 / 8** | 8 / 8 | PASS |
+| Live Coinbase ingestion (`--profile live`) | **verified** | available | PASS |
+
+## Live ingestion (verified)
+
+The default stack runs in replay mode for reproducibility, but live Coinbase ingestion is wired and verified. Bringing it up:
+
+```bash
+docker compose stop ingestor
+docker compose --profile live up -d ws-ingestor
+```
+
+End-to-end check observed during testing:
+
+- `ws-ingestor` connected to `wss://advanced-trade-ws.coinbase.com`, subscribed to the `ticker` and `heartbeats` channels for BTC-USD.
+- `ticks.raw` Kafka offset advanced from 117,317 → 117,398 in ~10 s (≈ 8 ticks/s, matching Coinbase's published ticker rate).
+- Sample message consumed from `ticks.raw`:
+
+  ```json
+  {"product_id": "BTC-USD", "price": "75681.74", "best_bid": "75681.74",
+   "best_ask": "75681.75", "volume_24_h": "4068.30928598",
+   "timestamp": "2026-04-19T04:10:41.328613453Z"}
+  ```
+
+- The featurizer, API, and monitoring stack required no changes — same Kafka payload schema as the replay path. The two ingestors are interchangeable behind the `ticks.raw` topic.
 
 ## Live dashboard
 
