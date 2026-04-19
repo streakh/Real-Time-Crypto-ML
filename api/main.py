@@ -40,18 +40,36 @@ if MODEL_VARIANT not in {"ml", "baseline"}:
     raise ValueError(f"MODEL_VARIANT must be 'ml' or 'baseline', got {MODEL_VARIANT!r}")
 
 # ---------------------------------------------------------------------------
-# Load model at startup
+# Load model at startup — only required for MODEL_VARIANT=ml.
+# Baseline must be able to start without the ML artifact, otherwise the
+# rollback path is useless in the exact failure mode it exists to handle
+# (model file missing/corrupt).
 # ---------------------------------------------------------------------------
-_model_path = Path(MODEL_PATH)
-if not _model_path.exists():
-    raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+FEATURE_COLS_DEFAULT = [
+    "log_return",
+    "spread_bps",
+    "vol_60s",
+    "mean_return_60s",
+    "trade_intensity_60s",
+    "n_ticks_60s",
+    "spread_mean_60s",
+]
 
-with open(_model_path, "rb") as f:
-    _bundle = pickle.load(f)
+PIPELINE = None
+FEATURE_COLS = FEATURE_COLS_DEFAULT
+TAU: float | None = None
 
-PIPELINE = _bundle["pipeline"]
-FEATURE_COLS = _bundle["feature_cols"]
-TAU = _bundle["tau"]
+if MODEL_VARIANT == "ml":
+    _model_path = Path(MODEL_PATH)
+    if not _model_path.exists():
+        raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+
+    with open(_model_path, "rb") as f:
+        _bundle = pickle.load(f)
+
+    PIPELINE = _bundle["pipeline"]
+    FEATURE_COLS = _bundle["feature_cols"]
+    TAU = _bundle["tau"]
 
 # ---------------------------------------------------------------------------
 # Git SHA (resolved once at startup)

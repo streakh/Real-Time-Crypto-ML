@@ -34,6 +34,3 @@ mlflow:
 evidently:
   report_dir: reports/evidently
   reference_size: 1000      # rows used as reference dataset
-
-docker:
-  compose_file: docker/compose.yaml

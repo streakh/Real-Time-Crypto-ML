@@ -39,7 +39,7 @@ KAFKA_BOOTSTRAP = (
     or os.getenv("KAFKA_BOOTSTRAP_SERVERS")
     or "localhost:9092"
 )
-TOPIC = "ticks.raw"
+TOPIC = os.getenv("TOPIC_RAW", "ticks.raw")
 BACKOFF_MIN = 0.5
 BACKOFF_MAX = 60.0
 # Circuit breaker — exit after this many consecutive reconnect failures
