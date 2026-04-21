@@ -3,3 +3,5 @@ uvicorn>=0.29
 scikit-learn>=1.4
 numpy
 prometheus-client>=0.20
+# mlflow pinned to match the tracking server image in docker-compose.yaml
+mlflow==2.12.2
