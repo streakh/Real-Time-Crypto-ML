@@ -35,6 +35,8 @@ KAFKA_BOOTSTRAP = (
     or "localhost:9092"
 )
 TOPIC = os.getenv("TOPIC_RAW", "ticks.raw")
+# Env-var speed multiplier so CI can fast-forward replay without touching CLI args
+REPLAY_SPEED = float(os.getenv("REPLAY_SPEED", "1.0"))
 
 
 def parse_ts(s: str) -> float:
@@ -128,8 +130,10 @@ def main():
     parser.add_argument(
         "--speed",
         type=float,
-        default=1.0,
-        help="Playback speed multiplier (1.0 = real-time)",
+        # CLI arg falls back to env var so CI can set REPLAY_SPEED=50 without
+        # changing the docker-compose command line
+        default=REPLAY_SPEED,
+        help="Playback speed multiplier (1.0 = real-time, overrides REPLAY_SPEED env var)",
     )
     parser.add_argument(
         "--loop",
