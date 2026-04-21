@@ -10,8 +10,19 @@ docker compose up -d --build
 # Wait ~30s for Kafka healthcheck, then:
 curl http://localhost:8000/health
 curl -X POST http://localhost:8000/predict \
-     -H 'Content-Type: application/json' \
-     -d @handoff/data_sample/sample.json
+  -H 'Content-Type: application/json' \
+  -d @handoff/data_sample/sample.json
+```
+
+Expected response shape (`scores` is the model's spike-probability per row; `ts` is UTC wall-clock at inference time):
+
+```json
+{
+  "scores": [0.10401],
+  "model_variant": "ml",
+  "version": "v1.0",
+  "ts": "2026-04-21T04:46:30.754701+00:00"
+}
 ```
 
 ## Replay vs live ingestion

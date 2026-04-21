@@ -1,3 +1,30 @@
+# =============================================================================
+# docker-compose.yaml — Canonical compose for the BTC Volatility Spike Detector
+# =============================================================================
+#
+# Run from repo root:
+#   cp .env.example .env
+#   docker compose up -d --build
+#
+# Services overview and healthcheck strategy
+# ------------------------------------------
+# kafka          — KRaft broker; healthcheck via kafka-broker-api-versions CLI
+# kafka-init     — One-shot topic creator; no healthcheck (exits 0 on success)
+# mlflow         — MLflow tracking UI; healthcheck via python urllib → /health
+# api            — FastAPI prediction service; healthcheck via python urllib → /health
+# ingestor       — Replay worker (loops raw_slice.ndjson → ticks.raw); no HTTP
+#                  endpoint, so no healthcheck — restart: on-failure is sufficient
+# ws-ingestor    — Live Coinbase WebSocket ingestor (profile: live only); same reasoning
+# featurizer     — Rolling-feature consumer (ticks.raw → ticks.features); same reasoning
+# kafka-exporter — Prometheus exporter; built from scratch image, no shell/wget
+#                  available for CMD-style healthcheck — omitted intentionally
+# prometheus     — Metrics collector; healthcheck via wget → /-/healthy
+# grafana        — Dashboard; healthcheck via wget → /api/health (checks DB ready)
+#
+# Env vars are documented in .env.example. All defaults are set so the stack
+# runs out-of-the-box without a .env file present.
+# =============================================================================
+
 services:
 
   # ---- Kafka (KRaft, no Zookeeper) ----
@@ -68,6 +95,13 @@ services:
         limits:
           memory: 1G
           cpus: "1.0"
+    # MLflow image ships with python; hit /health via urllib to avoid needing curl
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   # ---- FastAPI prediction service ----
   api:
@@ -216,6 +250,13 @@ services:
         limits:
           memory: 512M
           cpus: "0.5"
+    # /-/healthy is Prometheus's built-in liveness endpoint; wget ships in the image
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: on-failure
 
   # ---- Grafana ----
@@ -240,6 +281,13 @@ services:
         limits:
           memory: 512M
           cpus: "0.5"
+    # /api/health returns JSON including "database": "ok" once Grafana is ready
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q '\"database\": \"ok\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: on-failure
 
 volumes:
