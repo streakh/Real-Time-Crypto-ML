@@ -25,10 +25,23 @@ def test_version():
     r = requests.get(f"{BASE_URL}/version")
     assert r.status_code == 200
     body = r.json()
+    # Required fields always present in the new shape
     assert "model" in body
     assert "sha" in body
-    assert "tau" in body
-    assert len(body["features"]) == 7
+    assert "source" in body
+    assert "run_id" in body
+    assert "stage" in body
+
+
+def test_version_source():
+    r = requests.get(f"{BASE_URL}/version")
+    assert r.status_code == 200
+    body = r.json()
+    # source must be one of the two known load paths — never empty
+    assert body["source"] in ("mlflow", "pickle")
+    # run_id is allowed to be null when MLflow is not available in CI
+    assert "run_id" in body
+    assert "stage" in body
 
 
 def test_predict_single():
@@ -62,6 +75,7 @@ if __name__ == "__main__":
     tests = [
         test_health,
         test_version,
+        test_version_source,
         test_predict_single,
         test_predict_batch,
         test_predict_missing_field,

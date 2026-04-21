@@ -64,6 +64,60 @@ MODEL_VARIANT=ml docker compose up -d api
 
 The Grafana **Active variant** stat panel reflects the change within ~10 s of the next Prometheus scrape.
 
+## MLflow model registry
+
+### View registered model versions
+
+Open the MLflow UI at http://localhost:5001, navigate to **Models → btc-volatility-lr**. Each registered version shows its run metrics (PR-AUC, ROC-AUC) and the current stage.
+
+### Promote a prior version to Production
+
+In the MLflow UI: click the version number → **Stage → Transition to → Production**. This archives the current Production version and promotes the selected one. The API will load the new Production version on its next restart.
+
+Alternatively via CLI inside the running stack:
+
+```bash
+docker compose run --rm mlflow-init python - <<'EOF'
+from mlflow.tracking import MlflowClient
+import os
+client = MlflowClient("http://mlflow:5000")
+# List all versions for the model
+for v in client.search_model_versions("name='btc-volatility-lr'"):
+    print(v.version, v.current_stage, v.run_id)
+# Promote version N (replace 1 with the target version number)
+client.transition_model_version_stage(
+    "btc-volatility-lr", version="1", stage="Production",
+    archive_existing_versions=True
+)
+EOF
+```
+
+Then restart the API to pick up the newly promoted version:
+
+```bash
+docker compose restart api
+curl http://localhost:8000/version | jq '{source,stage,run_id}'
+```
+
+### Force pickle fallback (bypass MLflow)
+
+Set `MLFLOW_TRACKING_URI` to an unreachable address and restart the API.
+The startup code will catch the connection error, log a warning, and fall back
+to `handoff/models/artifacts/lr_pipeline.pkl`:
+
+```bash
+MLFLOW_TRACKING_URI=http://invalid:9999 docker compose up -d api
+docker logs api | grep "falling back to pickle"
+curl http://localhost:8000/version | jq '{source,run_id}'
+# → {"source": "pickle", "run_id": null}
+```
+
+To restore MLflow loading, restart without the override:
+
+```bash
+docker compose up -d api
+```
+
 ## Common failures
 
 | Symptom | Likely cause | Fix |
