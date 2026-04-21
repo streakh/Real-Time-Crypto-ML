@@ -158,6 +158,13 @@ ACTIVE_VARIANT = Gauge(
     ["model_variant"],
 )
 ACTIVE_VARIANT.labels(model_variant=MODEL_VARIANT).set(1)
+# Tracks how old the feature data is (seconds between feature timestamp and now).
+# TickRow has no ts field, so this uses request receipt time as a degraded fallback —
+# meaning it reflects API processing lag (~0ms), not true pipeline freshness.
+FEATURE_FRESHNESS = Gauge(
+    "feature_freshness_seconds",
+    "Seconds between the incoming feature row's timestamp and now",
+)
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
@@ -244,6 +251,20 @@ def metrics():
 def predict(req: PredictRequest):
     REQUEST_COUNT.labels(model_variant=MODEL_VARIANT).inc()
     start = time.perf_counter()
+
+    # Update feature freshness gauge.
+    # TickRow has no ts field and the API has no access to Kafka message timestamps,
+    # so we fall back to measuring request processing lag as a degraded proxy.
+    if req.rows and hasattr(req.rows[0], "ts") and req.rows[0].ts:
+        row_ts = datetime.fromisoformat(req.rows[0].ts.replace("Z", "+00:00"))
+        age = (datetime.now(timezone.utc) - row_ts).total_seconds()
+        FEATURE_FRESHNESS.set(age)
+    else:
+        logger.warning(
+            "feature_freshness_seconds: TickRow has no ts field — "
+            "setting degraded fallback (request processing lag)"
+        )
+        FEATURE_FRESHNESS.set(time.perf_counter() - start)
 
     try:
         scores = SCORERS[MODEL_VARIANT](req.rows)

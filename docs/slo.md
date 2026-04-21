@@ -10,7 +10,8 @@ These SLOs cover the public-facing prediction API (`api` service) and the stream
 | 2 | **Prediction latency p50** | ≤ 100 ms | rolling 5 min | `histogram_quantile(0.50, sum by (le) (rate(predict_latency_seconds_bucket[5m])))` |
 | 3 | **Request success rate** | ≥ 99 % | rolling 5 min | `1 - (sum(rate(predict_errors_total[5m])) / clamp_min(sum(rate(predict_requests_total[5m])), 0.001))` |
 | 4 | **Feature freshness (consumer lag)** | ≤ 200 ticks on `ticks.raw` | rolling 1 min | `sum(kafka_consumergroup_lag{topic="ticks.raw"})` |
-| 5 | **Service availability (`/health`)** | ≥ 99.5 % | 24 h | Compose healthcheck on `api` |
+| 5 | **Feature freshness (API gauge)** | ≤ 120 s | continuous | `feature_freshness_seconds` |
+| 6 | **Service availability (`/health`)** | ≥ 99.5 % | 24 h | Compose healthcheck on `api` |
 
 ## Error budget
 

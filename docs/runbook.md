@@ -1,5 +1,20 @@
 # Runbook — BTC Volatility Spike Detector
 
+## Monitoring
+
+**Grafana** — http://localhost:3000 (default login: admin / admin, anonymous viewer is also enabled)
+
+The dashboard "BTC Volatility Detector — API" has a **Pipeline Health** row at the bottom with two panels:
+
+| Panel | What it shows | Healthy range | Action if unhealthy |
+|---|---|---|---|
+| **Kafka Consumer Lag** | Unprocessed messages per consumer group and topic | ≤ 200 messages | Check `docker logs featurizer` — the featurizer may have fallen behind or crashed. Restart with `docker compose restart featurizer`. |
+| **Feature Freshness (seconds)** | How old the feature data is when the API receives it | ≤ 120 s | Check `docker logs ingestor` — the replay script may have stopped producing. Restart with `docker compose restart ingestor`. |
+
+For full SLO thresholds and error budgets see [docs/slo.md](slo.md).
+
+---
+
 ## Startup (cold)
 
 ```bash
