@@ -130,7 +130,9 @@ def _wait_for_series(expr: str, timeout: int, description: str) -> list[dict]:
     )
 
 
-def _wait_for_topic_message(topic: str, timeout: int, offset_reset: str = "latest") -> dict:
+def _wait_for_topic_message(
+    topic: str, timeout: int, offset_reset: str = "latest"
+) -> dict:
     consumer = Consumer(
         {
             "bootstrap.servers": KAFKA_BOOTSTRAP,
@@ -194,9 +196,9 @@ def test_replay_runtime_drives_prediction_metrics():
         f"Feature message is missing required fields: {missing}. "
         f"Message keys: {list(feature_msg.keys())}"
     )
-    assert feature_msg.get("timestamp"), (
-        "Feature messages should carry the timestamp that feeds API freshness."
-    )
+    assert feature_msg.get(
+        "timestamp"
+    ), "Feature messages should carry the timestamp that feeds API freshness."
 
     _wait_for_scalar(
         "sum(predict_requests_total)",
