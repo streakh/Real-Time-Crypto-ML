@@ -18,6 +18,8 @@
 #                  endpoint, so no healthcheck — restart: on-failure is sufficient
 # ws-ingestor    — Live Coinbase WebSocket ingestor (profile: live only); same reasoning
 # featurizer     — Rolling-feature consumer (ticks.raw → ticks.features); same reasoning
+# predict-bridge — Runtime consumer (ticks.features → /predict); retries 5xx/network
+#                  failures and commits offsets only after the API hop succeeds
 # kafka-exporter — Prometheus exporter; built from scratch image, no shell/wget
 #                  available for CMD-style healthcheck — omitted intentionally
 # prometheus     — Metrics collector; healthcheck via wget → /-/healthy
@@ -246,11 +248,42 @@ services:
       - features/featurizer.py
       - --config
       - /app/config.yaml
+      - --group-id
+      - ticks-featurizer
     deploy:
       resources:
         limits:
           memory: 1G
           cpus: "1.0"
+    restart: on-failure
+
+  # ---- Prediction bridge: ticks.features → /predict ----
+  predict-bridge:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      TOPIC_FEATURES: ticks.features
+      KAFKA_GROUP_ID: predict-bridge
+      PREDICT_API_URL: http://api:8000/predict
+      PREDICT_API_HEALTH_URL: http://api:8000/health
+    command:
+      - python
+      - -u
+      - scripts/feature_to_predict_bridge.py
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     restart: on-failure
 
   # ---- Kafka exporter (consumer-group lag → Prometheus) ----

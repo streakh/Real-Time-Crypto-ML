@@ -127,6 +127,22 @@ class ProductState:
         price = float(tick["price"])
         ts    = _parse_ts(tick["timestamp"])
 
+        # Replay mode can restart from the beginning of the capture while Kafka
+        # still holds newer historical ticks from a prior run. When event time
+        # moves backwards, reset rolling state so feature emission can resume
+        # cleanly instead of stalling behind an impossible lookahead window.
+        if self.ts_buf and ts < self.ts_buf[-1]:
+            log.warning(
+                "Timestamp regression for %s: resetting rolling state (%s -> %s)",
+                tick.get("product_id", "unknown"),
+                self.ts_buf[-1],
+                ts,
+            )
+            self.price_buf.clear()
+            self.spread_buf.clear()
+            self.ts_buf.clear()
+            self.pending.clear()
+
         mid    = compute_midprice(bid, ask)
         spread = compute_spread(bid, ask, mid)
 

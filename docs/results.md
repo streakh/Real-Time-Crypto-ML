@@ -8,10 +8,23 @@ Single-page summary of the production system's measured performance against the 
 |---|---:|---:|:---:|
 | `/predict` latency p95 (single row) | **255.2 ms** | ≤ 800 ms | PASS (~3× headroom) |
 | `/predict` success rate (100-burst) | **100 %** (100 / 100) | ≥ 99.0 % | PASS |
+| Replay mode drives real `/predict` traffic | **verified via `predict_requests_total`** | required | PASS |
+| Replay runtime lag panels | **`ticks-featurizer` + `predict-bridge` visible** | required | PASS |
 | Held-out test PR-AUC, ML vs baseline | **0.1459 vs 0.1340** | ML > baseline | PASS (+8.9 %) |
 | Rollback time, ML → baseline | **< 10 s** | manual, fast | PASS |
-| Services up under `docker compose up -d` | **8 / 8** | 8 / 8 | PASS |
+| Services up under `docker compose up -d` | **9 / 9** | 9 / 9 | PASS |
 | Live Coinbase ingestion (`--profile live`) | **verified** | available | PASS |
+
+## Replay mode is now truly end-to-end
+
+The default stack no longer stops at `ticks.features`. The shipped runtime now includes a dedicated `predict-bridge` service that consumes engineered feature rows from Kafka and POSTs them into `/predict`, stamping each request from Kafka publish time so the API's freshness gauge reflects the real feature-to-predict hop instead of a test-only shim or the archived market timestamp.
+
+Operationally, that means replay mode now produces all four artifacts we claimed:
+
+- raw Kafka traffic on `ticks.raw`
+- feature Kafka traffic on `ticks.features`
+- real API prediction traffic visible in `predict_requests_total`
+- Prometheus-visible replay lag on both runtime hops via `ticks-featurizer` and `predict-bridge`
 
 ## Live ingestion (verified)
 
@@ -34,13 +47,13 @@ End-to-end check observed during testing:
    "timestamp": "2026-04-19T04:10:41.328613453Z"}
   ```
 
-- The featurizer, API, and monitoring stack required no changes — same Kafka payload schema as the replay path. The two ingestors are interchangeable behind the `ticks.raw` topic.
+- The featurizer, `predict-bridge`, API, and monitoring stack required no changes — same Kafka payload schema as the replay path. The two ingestors are interchangeable behind the `ticks.raw` topic.
 
 ## Live dashboard
 
 ![Grafana dashboard — BTC Volatility Detector API](../handoff/docs/grafana_dashboard.png)
 
-Single screenshot covering the full rollback drill: both `ml` and `baseline` variants visible in the **Active model variant** stat, p95 / p50 latency well under the 800 ms SLO line, three load-test spikes in **Request rate by variant** (one `ml` → `baseline` flip → back to `ml`), zero errors across the whole sequence (the "No data" on the error-rate panel is the expected output of `rate()` over an empty counter), and the **Kafka consumer lag** panel showing the featurizer's group catching up after the burst. Dashboard JSON is at [`monitoring/grafana/dashboards/api.json`](../monitoring/grafana/dashboards/api.json).
+The current dashboard surfaces active variant, p50 / p95 latency, request and error rate, plus a dedicated replay row for `ticks.raw -> featurizer`, `ticks.features -> predict-bridge`, and API freshness. Dashboard JSON is at [`monitoring/grafana/dashboards/api.json`](../monitoring/grafana/dashboards/api.json).
 
 ## Latency
 
@@ -56,8 +69,8 @@ We do not run a long-horizon uptime measurement (this is a coursework deployment
 
 - **Target:** 99.0 % monthly success rate on `/health` and `/predict` (≈ 7 h 18 min monthly error budget).
 - **Mechanism:** every container declares `restart: on-failure`; Kafka and the API both have healthchecks; `depends_on … condition: service_healthy` guarantees correct startup ordering.
-- **Recovery contract:** documented in [`runbook.md`](./runbook.md) — every common failure mode (Kafka volume corruption, ingestor restart loop, missing model artifact, Grafana "No data") has a 1-line recovery command and an expected outcome.
-- **Observability hooks:** the Grafana dashboard surfaces error rate per variant and Kafka consumer lag, so the on-call signal arrives before users do.
+- **Recovery contract:** documented in [`runbook.md`](./runbook.md) — every common failure mode (Kafka volume corruption, ingestor restart loop, bridge retry loop, missing model artifact, Grafana "No data") has a 1-line recovery command and an expected outcome.
+- **Observability hooks:** the Grafana dashboard surfaces error rate per variant, replay lag on both Kafka hops, and API freshness, so the on-call signal arrives before users do.
 
 A continuous-uptime number can be added later by pointing an external prober (e.g. an uptime check) at `/health`; the API and the Prometheus error counters are already wired for it.
 
@@ -93,4 +106,4 @@ Full report in [`drift_summary.md`](./drift_summary.md). One-line version: 5 of 
 - The **performance** budget (latency, success rate) is comfortably met.
 - The **reliability** budget is enforced by Compose healthchecks + restart policies + a documented runbook, but does not yet have a long-horizon measured uptime number.
 - The **model** earns its keep over the trivial baseline (+8.9 % test PR-AUC) and the rollback to that baseline is a one-environment-variable change with sub-10-second propagation.
-- Drift is **monitored**, not yet **alerted on** — a natural next step is wiring an Evidently scheduled job + a Prometheus alert rule on the dashboard's existing panels.
+- Drift is **monitored**, not yet **alerted on** — a natural next step is tightening manual review cadence and adding Prometheus alert rules on the dashboard's existing panels.

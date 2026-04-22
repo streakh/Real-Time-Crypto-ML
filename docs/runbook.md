@@ -4,12 +4,13 @@
 
 **Grafana** — http://localhost:3000 (default login: admin / admin, anonymous viewer is also enabled)
 
-The dashboard "BTC Volatility Detector — API" has a **Pipeline Health** row at the bottom with two panels:
+The dashboard "BTC Volatility Detector — API" has a **Replay Runtime Path** row that tracks the live replay hop into `/predict`, not just Kafka ingestion:
 
 | Panel | What it shows | Healthy range | Action if unhealthy |
 |---|---|---|---|
-| **Kafka Consumer Lag** | Unprocessed messages per consumer group and topic | ≤ 200 messages | Check `docker logs featurizer` — the featurizer may have fallen behind or crashed. Restart with `docker compose restart featurizer`. |
-| **Feature Freshness (seconds)** | How old the feature data is when the API receives it | ≤ 120 s | Check `docker logs ingestor` — the replay script may have stopped producing. Restart with `docker compose restart ingestor`. |
+| **Kafka lag: ticks.raw -> featurizer** | Unprocessed raw ticks waiting on the featurizer consumer group `ticks-featurizer` | ≤ 200 messages | Check `docker logs featurizer` — the featurizer may have fallen behind or crashed. Restart with `docker compose restart featurizer`. |
+| **Kafka lag: ticks.features -> predict** | Unprocessed feature rows waiting on the runtime bridge consumer group `predict-bridge` | ≤ 200 messages | Check `docker logs predict-bridge` and `docker logs api` — the bridge may be retrying API calls or the API may be unhealthy. Restart with `docker compose restart predict-bridge api`. |
+| **Prediction freshness at API (seconds)** | Age of the Kafka feature-publication timestamp when the runtime bridge reaches `/predict` | ≤ 120 s | Check `docker logs ingestor`, `docker logs featurizer`, and `docker logs predict-bridge` in that order. The bridge stamps requests from Kafka publish time so this gauge tracks the real feature-to-predict hop instead of the archived market timestamp. |
 
 For full SLO thresholds and error budgets see [docs/slo.md](slo.md).
 
@@ -24,7 +25,7 @@ The canonical drift analysis is `handoff/reports/train_vs_test.html`. See `docs/
 ```bash
 cp .env.example .env                   # one-time
 docker compose up -d --build           # ~30s for Kafka healthcheck to go green
-docker compose ps                      # all 8 services should be Up
+docker compose ps                      # 9 long-lived services should be Up; kafka-init/mlflow-init should show Exited (0)
 curl http://localhost:8000/health      # → {"status":"ok"}
 ```
 
@@ -54,6 +55,16 @@ python tests/load_test.py              # 100 burst requests, expect p95 < 800ms
 (`log_return`, `spread_bps`, `vol_60s`, `mean_return_60s`,
 `trade_intensity_60s`, `n_ticks_60s`, `spread_mean_60s`) plus optional `ts`,
 not raw Coinbase tick messages.
+
+Replay mode is now truly end-to-end inside Compose: `ingestor` produces
+`ticks.raw`, `featurizer` produces `ticks.features`, and `predict-bridge`
+automatically POSTs each feature row into `/predict`. You can confirm that hop
+without the test harness:
+
+```bash
+docker logs --tail=20 predict-bridge
+curl -s "http://localhost:9090/api/v1/query?query=sum(predict_requests_total)" | jq .
+```
 
 ## Switch to live ingestion
 
@@ -153,6 +164,8 @@ docker compose up -d api
 | `kafka` container restarts in a loop | Stale KRaft volume after image upgrade | `docker compose down -v` then `docker compose up -d --build` (wipes Kafka volume, OK in replay mode) |
 | `ingestor` exits with `Kafka bootstrap … not reachable` | Started before `kafka-init` finished | `docker compose restart ingestor` (the service has `restart: on-failure` so it usually self-heals) |
 | `featurizer` runs but `ticks.features` offset stays at 0 | First 60 s of ticks are still in the label-delay buffer | Wait — labels emit only after `horizon_sec` (60 s) of future history. Confirm with `docker exec kafka kafka-run-class kafka.tools.GetOffsetShell --broker-list kafka:29092 --topic ticks.features --time -1` |
+| `predict-bridge` logs repeated 5xx / connection errors | API is unhealthy or still starting | `docker compose restart api predict-bridge` and check `curl http://localhost:8000/health` |
+| `predict_requests_total` stays flat while `ticks.features` grows | The bridge is not consuming or is stuck on an uncommitted message | Check `docker logs predict-bridge`; if needed restart `docker compose restart predict-bridge` |
 | `/predict` returns 500 with `Model not found` | Volume mount didn't pick up `lr_pipeline.pkl` | Rebuild API: `docker compose up -d --build api` |
 | Grafana panels say "No data" | Prometheus hasn't scraped yet, or `api` job is `down` | Visit http://localhost:9090/targets and check the `api` row. If `down`, restart with `docker compose restart prometheus` |
 | Consumer-lag panel empty | `kafka-exporter` not up | `docker compose up -d kafka-exporter`; check logs |
@@ -180,6 +193,7 @@ docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
     --broker-list kafka:29092 --topic ticks.raw --time -1
 docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
     --broker-list kafka:29092 --topic ticks.features --time -1
+curl -s "http://localhost:9090/api/v1/query?query=sum(predict_requests_total)" | jq .
 ```
 
 **Regenerate drift report:**
