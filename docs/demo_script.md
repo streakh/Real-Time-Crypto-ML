@@ -129,19 +129,19 @@ Read result aloud: 100/100 success, p95 ~66 ms. Tie back to [`latency_report.md`
 ```bash
 MODEL_VARIANT=baseline docker compose up -d api
 sleep 3
-curl -s http://localhost:8000/version | jq '.variant, .baseline_vol_threshold'
+curl -s http://localhost:8000/version | jq '.source, .model'
 curl -s -X POST http://localhost:8000/predict \
      -H 'Content-Type: application/json' \
      -d @handoff/data_sample/sample.json | jq '.model_variant, .scores'
 python tests/load_test.py
 ```
 
-Show: `variant` flipped to `"baseline"`, scores are now hard 0/1 from the threshold rule. Switch to Grafana — Active variant panel flips, request-rate splits to the `baseline` series.
+Show: `source` reflects the model load path, scores are now hard 0/1 from the threshold rule. Switch to Grafana — Active variant panel flips, request-rate splits to the `baseline` series.
 
 ```bash
 MODEL_VARIANT=ml docker compose up -d api
 sleep 3
-curl -s http://localhost:8000/version | jq '.variant'
+curl -s http://localhost:8000/version | jq '.source'
 python tests/load_test.py
 ```
 

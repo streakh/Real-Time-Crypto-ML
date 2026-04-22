@@ -1,5 +1,8 @@
 """Smoke tests for the FastAPI prediction service."""
 
+import json
+from pathlib import Path
+
 import requests
 
 BASE_URL = "http://localhost:8000"
@@ -21,8 +24,8 @@ def test_health():
     assert r.json() == {"status": "ok"}
 
 
-def test_version():
-    r = requests.get(f"{BASE_URL}/version")
+def test_version(client):
+    r = client.get("/version")
     assert r.status_code == 200
     body = r.json()
     # Required fields always present in the new shape
@@ -33,8 +36,8 @@ def test_version():
     assert "stage" in body
 
 
-def test_version_source():
-    r = requests.get(f"{BASE_URL}/version")
+def test_version_source(client):
+    r = client.get("/version")
     assert r.status_code == 200
     body = r.json()
     # source must be one of the two known load paths — never empty
@@ -69,6 +72,25 @@ def test_metrics():
     r = requests.get(f"{BASE_URL}/metrics")
     assert r.status_code == 200
     assert "predict_requests_total" in r.text
+
+
+def test_sample_json_payload(client):
+    sample_path = Path(__file__).parent.parent / "handoff" / "data_sample" / "sample.json"
+    with open(sample_path) as f:
+        payload = json.load(f)
+
+    response = client.post("/predict", json=payload)
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "scores" in data
+    assert "model_variant" in data
+    assert "version" in data
+    assert "ts" in data
+    assert data["version"] == "v1.0"
+    assert isinstance(data["scores"], list)
+    assert len(data["scores"]) == 1
+    assert 0 <= data["scores"][0] <= 1
 
 
 if __name__ == "__main__":

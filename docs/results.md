@@ -76,10 +76,10 @@ The `MODEL_VARIANT` toggle was exercised live:
 
 ```bash
 MODEL_VARIANT=baseline docker compose up -d api
-curl -s http://localhost:8000/version | jq '.variant'   # → "baseline"
+curl -s http://localhost:8000/version | jq '.source'   # → "pickle"
 
 MODEL_VARIANT=ml docker compose up -d api
-curl -s http://localhost:8000/version | jq '.variant'   # → "ml"
+curl -s http://localhost:8000/version | jq '.source'   # → "mlflow" or "pickle"
 ```
 
 The Grafana **Active variant** stat panel (top-left of the API dashboard) flips within ~10 s of the next Prometheus scrape, and `predict_requests_total{model_variant=…}` cleanly partitions traffic by variant for post-hoc analysis.

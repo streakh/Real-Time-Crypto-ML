@@ -13,6 +13,10 @@ The dashboard "BTC Volatility Detector — API" has a **Pipeline Health** row at
 
 For full SLO thresholds and error budgets see [docs/slo.md](slo.md).
 
+## Drift Detection
+
+The canonical drift analysis is `handoff/reports/train_vs_test.html`. See `docs/drift_summary.md` for the summary and per-feature results.
+
 ---
 
 ## Startup (cold)
@@ -68,7 +72,7 @@ When the ML variant misbehaves (latency burns budget, error spike, drift alert),
 ```bash
 # In .env (or one-shot):
 MODEL_VARIANT=baseline docker compose up -d api
-curl http://localhost:8000/version | jq .variant     # "baseline"
+curl http://localhost:8000/version | jq .source     # "pickle"
 ```
 
 Roll forward when ready:

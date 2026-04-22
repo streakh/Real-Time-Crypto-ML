@@ -20,17 +20,17 @@
 | Requests sent | 100 |
 | Succeeded (HTTP 200) | 100 (100 %) |
 | Failed | 0 |
-| Latency p50 | 56.9 ms |
-| Latency p95 | **66.1 ms** |
-| Latency p99 | 68.7 ms |
-| Latency max | 68.7 ms |
+| Latency p50 | 236.8 ms |
+| Latency p95 | **255.2 ms** |
+| Latency p99 | 256.9 ms |
+| Latency max | 256.9 ms |
 
 ## SLO check
 
-p95 SLO target: **≤ 800 ms** → measured **66.1 ms** → **PASS** with ~12× headroom.
+p95 SLO target: **≤ 800 ms** → measured **255.2 ms** → **PASS** with ~3× headroom.
 
 ## Notes
 
-- The tight clustering between p50 and p99 (~12 ms spread) reflects that the ML scoring path is essentially constant-time at this batch size: a single sklearn `predict_proba` call dominates.
+- The tight clustering between p50 and p99 (~20 ms spread) reflects that the ML scoring path is essentially constant-time at this batch size: a single sklearn `predict_proba` call dominates.
 - The featurizer and ingestor were actively running during the test, so this number reflects realistic contention from the streaming workload, not an idle container.
 - `MODEL_VARIANT=baseline` would be slightly faster (no sklearn call), but was not retested here because the SLO targets the production `ml` variant.

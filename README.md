@@ -9,19 +9,41 @@ cp .env.example .env
 docker compose up -d --build
 # Wait ~30s for Kafka healthcheck, then:
 curl http://localhost:8000/health
+```
+
+## Quick Test
+
+```bash
 curl -X POST http://localhost:8000/predict \
   -H 'Content-Type: application/json' \
   -d @handoff/data_sample/sample.json
 ```
 
-Expected response shape (`scores` is the model's spike-probability per row; `ts` is UTC wall-clock at inference time):
+The `sample.json` payload contains one feature row (row 1 of `handoff/data_sample/features_slice.csv`):
+
+```json
+{
+  "rows": [{
+    "log_return": 0.0,
+    "spread_bps": 0.0014345986913609724,
+    "vol_60s": 0.0,
+    "mean_return_60s": 0.0,
+    "trade_intensity_60s": 0.016666666666666666,
+    "n_ticks_60s": 1,
+    "spread_mean_60s": 0.010000000009313226,
+    "ts": "2026-04-06T15:02:34.590029Z"
+  }]
+}
+```
+
+Expected response (`ts` is UTC wall-clock at inference time):
 
 ```json
 {
   "scores": [0.10401],
   "model_variant": "ml",
   "version": "v1.0",
-  "ts": "2026-04-21T04:46:30.754701+00:00"
+  "ts": "YYYY-MM-DDTHH:MM:SS.ffffffZ"
 }
 ```
 
@@ -53,7 +75,7 @@ To switch from the LR model to the deterministic baseline rule:
 
 ```bash
 MODEL_VARIANT=baseline docker compose up -d api
-curl -s http://localhost:8000/version | jq .variant   # → "baseline"
+curl -s http://localhost:8000/version | jq .source   # → "pickle"
 ```
 
 Roll forward with `MODEL_VARIANT=ml docker compose up -d api`. The Grafana **Active variant** panel reflects the change within ~10 s.

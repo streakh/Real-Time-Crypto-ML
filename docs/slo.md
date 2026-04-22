@@ -27,9 +27,9 @@ If any budget is burned more than 50 % within a 24 h window, the on-call action 
 
 | Metric | Value | vs SLO |
 |---|---:|:---:|
-| p50 latency | 56.9 ms | within target |
-| p95 latency | 66.1 ms | well within target (target 800 ms) |
-| p99 latency | 68.7 ms | n/a |
+| p50 latency | 236.8 ms | within target |
+| p95 latency | 255.2 ms | within target (target 800 ms) |
+| p99 latency | 256.9 ms | n/a |
 | Success rate | 100 % | within target |
 
 Full report: [latency_report.md](latency_report.md).

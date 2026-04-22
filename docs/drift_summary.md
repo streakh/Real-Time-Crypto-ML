@@ -1,48 +1,44 @@
-# Drift Summary — Train vs Test
+# Drift Summary
 
-Source report: [`handoff/reports/train_vs_test.html`](../handoff/reports/train_vs_test.html) (Evidently 0.4.33).
+## Canonical Drift Report
 
-## Setup
+The authoritative drift analysis for this project is `handoff/reports/train_vs_test.html`, generated during Part 1 model development.
 
-- **Reference dataset:** training-period feature rows (chronological train split).
-- **Current dataset:** held-out test split (later in time, no overlap with reference).
-- **Statistical tests:** Wasserstein distance (normed) for numeric features; Jensen-Shannon distance for the binary `vol_spike` label.
-- **Drift threshold:** Evidently default — flag when test statistic exceeds the per-test threshold (Wasserstein default 0.1).
+## Analysis Parameters
 
-## Per-feature drift scores
+- **Reference dataset:** training split (first 60% of collection, ~368K rows) from `data/processed/features.parquet`
+- **Current dataset:** test split (last 20% of collection, ~122K rows) from `data/processed/features.parquet`
+- **Tool:** Evidently AI — DataDriftPreset (DatasetDriftMetric + DataDriftTable)
+- **Drift metric:** Wasserstein distance (normed) for continuous features; Jensen-Shannon distance for the binary `vol_spike` target
+- **Features compared:** 8 (7 model input features + `vol_spike` label)
 
-| Feature | Test | Score | Interpretation |
-|---|---|---:|---|
-| `trade_intensity_60s` | Wasserstein | **0.4191** | **Drifted** — large shift in tick-arrival rate between train and test windows |
-| `n_ticks_60s` | Wasserstein | **0.4191** | **Drifted** — same underlying signal as `trade_intensity_60s` (perfect correlation), explains the identical score |
-| `spread_mean_60s` | Wasserstein | **0.1918** | **Drifted** — liquidity regime changed; bid-ask spreads tightened/widened relative to training period |
-| `vol_spike` (target) | Jensen-Shannon | 0.0974 | Borderline — class balance shifted modestly between periods |
-| `spread_bps` | Wasserstein | 0.0116 | Stable |
-| `vol_60s` | Wasserstein | 0.0041 | Stable |
-| `log_return` | Wasserstein | 0.0010 | Stable |
-| `mean_return_60s` | Wasserstein | 0.0001 | Stable |
+## Results
 
-## Top-line findings
+- **Features with drift:** 3 (`n_ticks_60s`, `spread_mean_60s`, `trade_intensity_60s`)
+- **Share of drifted features:** 37.5% (3 of 8)
+- **Overall drift verdict at 0.5 threshold:** Not detected — 37.5% of columns drifted, below the 50% dataset-level threshold
 
-1. **The two highest-drift features (`trade_intensity_60s`, `n_ticks_60s`) are the same signal** — both count ticks per second over a 60 s window, just expressed differently. The 0.42 Wasserstein score indicates BTC trading activity in the test window is materially different from the training window (likely a different market regime: weekend/weekday split, a US-vs-Asia session shift, or a volatility cluster in one period not the other).
-2. **`spread_mean_60s` drifted moderately (0.19)** — consistent with the liquidity-regime hypothesis above.
-3. **Returns and volatility themselves did not drift** — `log_return`, `mean_return_60s`, and `vol_60s` are all near zero. Price-action distribution is stable; what changed is *how busy* the order book was.
-4. **The label (`vol_spike`) shows mild drift (0.097)** — class balance moved slightly, which is the expected downstream effect of the activity shift but small enough not to require relabeling.
+### Per-Feature Status
 
-## Implications for the served model
+| Feature | Drift Detected | Score | Stat Test |
+|---------|:--------------:|------:|-----------|
+| `n_ticks_60s` | Yes | 0.4191 | Wasserstein distance (normed) |
+| `trade_intensity_60s` | Yes | 0.4191 | Wasserstein distance (normed) |
+| `spread_mean_60s` | Yes | 0.1918 | Wasserstein distance (normed) |
+| `vol_spike` (target) | No | 0.0974 | Jensen-Shannon distance |
+| `spread_bps` | No | 0.0116 | Wasserstein distance (normed) |
+| `vol_60s` | No | 0.0041 | Wasserstein distance (normed) |
+| `log_return` | No | 0.0010 | Wasserstein distance (normed) |
+| `mean_return_60s` | No | 0.0001 | Wasserstein distance (normed) |
 
-- The LR pipeline uses `trade_intensity_60s`, `n_ticks_60s`, and `spread_mean_60s` as features, so test-time predictions are extrapolating into a region of feature space the model saw less of during training. This is the most plausible explanation for the modest val→test PR-AUC gap noted in `handoff/SELECTED_BASE_NOTE.md`.
-- No immediate action needed — the model still beats the z-score baseline on test PR-AUC (0.146 vs 0.134). But this is the canonical signal to **retrain on a more recent window** before promoting to production.
+## Interpretation
 
-## How to regenerate
+The three drifted features — `n_ticks_60s`, `trade_intensity_60s`, and `spread_mean_60s` — all measure order-book activity and trading pace, indicating the test window (2026-04-07, spike rate 6.9%) was a meaningfully quieter market regime than the training period (2026-04-04 to 2026-04-06, spike rate 15.4%). Price-action features (`log_return`, `mean_return_60s`, `vol_60s`) did not drift, confirming the shift is in market microstructure rather than in price dynamics themselves. The model still outperforms the deterministic baseline on test PR-AUC (0.1459 vs 0.1340) because the rank ordering its LR coefficients rely on is preserved even as the absolute activity distributions shift — but this regime gap is the primary driver of the val→test PR-AUC drop (0.358 → 0.1459) and the canonical trigger for retraining on a more recent window before production promotion.
 
-```bash
-# Compares the reference (training feature slice) against whatever the live
-# featurizer has written to data/processed/features.parquet.
-python scripts/drift_report.py \
-  --reference handoff/data_sample/features_slice.csv \
-  --current   data/processed/features.parquet \
-  --out       reports/drift_$(date +%Y%m%d).html
-```
+## Training Reference Dataset
 
-The script reuses the same Evidently version pinned in `handoff/requirements.txt` so output is byte-comparable to the original report.
+The full training reference dataset (`features.parquet`, 784K rows, 48MB) is not committed to this repo due to GitHub file size limits. It lives in the model training environment. For reproducibility, a 10-minute sample of the feature schema is committed at `handoff/data_sample/features_slice.csv`.
+
+## Scheduled Drift Monitoring
+
+[Placeholder — pending team decision on scheduled drift infrastructure.]

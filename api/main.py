@@ -181,6 +181,8 @@ class TickRow(BaseModel):
     trade_intensity_60s: float
     n_ticks_60s: float
     spread_mean_60s: float
+    # ISO-8601 timestamp from the featurizer; used to compute feature_freshness_seconds
+    ts: str | None = None
 
 
 class PredictRequest(BaseModel):
