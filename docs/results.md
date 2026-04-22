@@ -6,7 +6,7 @@ Single-page summary of the production system's measured performance against the 
 
 | Dimension | Result | Target | Status |
 |---|---:|---:|:---:|
-| `/predict` latency p95 (single row) | **66.1 ms** | ≤ 800 ms | PASS (~12× headroom) |
+| `/predict` latency p95 (single row) | **255.2 ms** | ≤ 800 ms | PASS (~3× headroom) |
 | `/predict` success rate (100-burst) | **100 %** (100 / 100) | ≥ 99.0 % | PASS |
 | Held-out test PR-AUC, ML vs baseline | **0.1459 vs 0.1340** | ML > baseline | PASS (+8.9 %) |
 | Rollback time, ML → baseline | **< 10 s** | manual, fast | PASS |
@@ -47,8 +47,8 @@ Single screenshot covering the full rollback drill: both `ml` and `baseline` var
 Full methodology and percentiles in [`latency_report.md`](./latency_report.md). Highlights:
 
 - 100 concurrent requests through `tests/load_test.py` against the running stack (Kafka, ingestor, featurizer, API, MLflow, Prometheus, Grafana, kafka-exporter all live).
-- p50 / p95 / p99 = 56.9 / 66.1 / 68.7 ms — the tight 12 ms spread shows the sklearn `predict_proba` call dominates and the path is essentially constant-time at this batch size.
-- Roughly **12× headroom** on the 800 ms p95 SLO, which leaves room for richer features or a heavier model without breaching the budget.
+- p50 / p95 / p99 = 236.8 / 255.2 / 256.9 ms — the tight 20 ms spread shows the sklearn `predict_proba` call dominates and the path is essentially constant-time at this batch size.
+- Roughly **3× headroom** on the 800 ms p95 SLO, which leaves room for richer features or a heavier model without breaching the budget.
 
 ## Uptime / availability
 
