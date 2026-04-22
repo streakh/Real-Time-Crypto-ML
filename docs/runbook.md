@@ -38,6 +38,10 @@ Open dashboards:
 ## Smoke test
 
 ```bash
+curl -s http://localhost:8000/version | jq .
+# → {"model":"btc-volatility-lr","version":"v1.0","stage":"Production","source":"mlflow","run_id":"…","sha":"…"}
+#   stage and run_id are null when the API falls back to the local pickle artifact.
+
 curl -X POST http://localhost:8000/predict \
      -H 'Content-Type: application/json' \
      -d @handoff/data_sample/sample.json
@@ -45,6 +49,11 @@ curl -X POST http://localhost:8000/predict \
 
 python tests/load_test.py              # 100 burst requests, expect p95 < 800ms
 ```
+
+`/predict` is a post-featurization boundary. Send the seven engineered features
+(`log_return`, `spread_bps`, `vol_60s`, `mean_return_60s`,
+`trade_intensity_60s`, `n_ticks_60s`, `spread_mean_60s`) plus optional `ts`,
+not raw Coinbase tick messages.
 
 ## Switch to live ingestion
 
@@ -122,7 +131,7 @@ curl http://localhost:8000/version | jq '{source,stage,run_id}'
 
 Set `MLFLOW_TRACKING_URI` to an unreachable address and restart the API.
 The startup code will catch the connection error, log a warning, and fall back
-to `handoff/models/artifacts/lr_pipeline.pkl`:
+to `models/artifacts/lr_pipeline.pkl`:
 
 ```bash
 MLFLOW_TRACKING_URI=http://invalid:9999 docker compose up -d api

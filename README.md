@@ -15,6 +15,8 @@ Use this root README together with the root `docker-compose.yaml` as the only st
 
 ## Quick Test
 
+The prediction API boundary is **post-featurization**: `/predict` accepts the seven engineered 60-second features produced by the featurizer, not raw Coinbase tick messages.
+
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H 'Content-Type: application/json' \
@@ -46,6 +48,19 @@ Expected response (`ts` is UTC wall-clock at inference time):
   "model_variant": "ml",
   "version": "v1.0",
   "ts": "YYYY-MM-DDTHH:MM:SS.ffffffZ"
+}
+```
+
+`/version` always returns the same metadata shape, with `stage` and `run_id` set to `null` when the API falls back to the local pickle artifact:
+
+```json
+{
+  "model": "btc-volatility-lr",
+  "version": "v1.0",
+  "stage": "Production",
+  "source": "mlflow",
+  "run_id": "RUN_ID_OR_NULL",
+  "sha": "GIT_SHA"
 }
 ```
 
@@ -106,8 +121,11 @@ config.yaml           Featurizer config
 | [`docs/latency_report.md`](docs/latency_report.md) | Load-test methodology and percentiles |
 | [`docs/drift_summary.md`](docs/drift_summary.md) | Evidently train-vs-test drift findings |
 | [`docs/runbook.md`](docs/runbook.md) | Cold start, smoke test, rollback, common failures, recovery |
-| [`handoff/SELECTED_BASE_NOTE.md`](handoff/SELECTED_BASE_NOTE.md) | Model selection rationale (ablation study) |
-| [`handoff/docs/`](handoff/docs/) | Architecture diagram, feature spec, model card, team charter |
+| [`selection_rationale.md`](selection_rationale.md) | Why the team chose this architecture, API boundary, and model |
+| [`team_charter.md`](team_charter.md) | Team roles, norms, and ways of working |
+| [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md) | Original Part 1 feature definitions and ablation notes |
+| [`handoff/docs/model_card_v1.md`](handoff/docs/model_card_v1.md) | Original Part 1 model card |
+| [`handoff/SELECTED_BASE_NOTE.md`](handoff/SELECTED_BASE_NOTE.md) | Original Part 1 ablation note preserved for reference |
 
 ## Notes on `handoff/`
 

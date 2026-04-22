@@ -6,35 +6,44 @@ Cryptocurrency markets are highly volatile and can experience sudden spikes in p
 ## Why This Problem
 We selected this problem because it combines real time data processing with machine learning based prediction, which aligns well with the objectives of building operational AI systems. It also reflects real world use cases in financial analytics and trading systems.
 
-## Approach
-Our system uses a machine learning model (Logistic Regression pipeline) trained on engineered features such as log returns, spread, volatility, and trade intensity. The model predicts the probability of a volatility spike.
+## Delivered System
+The final team project is an end-to-end real-time stack:
 
-For the interim submission, we implemented:
-- A FastAPI based prediction service
-- Model loading and inference pipeline
-- Replay mode using sample data
-- Core endpoints for health, prediction, versioning, and metrics
+- Coinbase BTC-USD ticks enter through Kafka, either from the replay ingestor or the live WebSocket ingestor.
+- The featurizer computes rolling 60-second engineered features and publishes feature rows downstream.
+- The FastAPI service exposes `/health`, `/predict`, `/version`, and `/metrics`.
+- MLflow tracks model versions, and Prometheus plus Grafana provide operational visibility.
+- `MODEL_VARIANT=ml|baseline` gives us a documented rollback path.
+
+## Model and API Choice
+We standardized on a Logistic Regression pipeline trained on the canonical 7-feature set:
+`log_return`, `spread_bps`, `vol_60s`, `mean_return_60s`,
+`trade_intensity_60s`, `n_ticks_60s`, and `spread_mean_60s`.
+
+This model choice balanced three needs:
+
+- It beat the deterministic baseline on PR-AUC while staying simple enough to explain and debug.
+- It is lightweight enough to keep inference latency comfortably inside the service SLO.
+- Its inputs are engineered upstream, so the API boundary is intentionally narrow: `/predict` accepts post-featurization rows rather than raw ticks.
 
 ## Why This Architecture
-We chose a modular architecture to separate concerns:
-- FastAPI for serving predictions
-- Docker for containerization
-- Replay data for simulating streaming input
-- Prometheus metrics for monitoring
+We chose the current architecture because it matches the operational story we needed to prove in the team project:
 
-This design ensures scalability and ease of integration with real time streaming systems like Kafka in future iterations.
+- Kafka decouples ingestion from feature engineering and serving.
+- FastAPI gives a small, testable prediction surface.
+- MLflow makes the promoted model artifact explicit and inspectable.
+- Prometheus and Grafana make latency, error rate, variant toggles, and freshness observable.
+- Docker Compose lets the whole stack run reproducibly for grading and demos.
 
 ## Trade-offs
-- We used a simple Logistic Regression model for faster deployment and easier debugging instead of a more complex model.
-- Replay mode is used instead of real time streaming to simplify the initial implementation.
-- Monitoring is basic and will be extended in future versions.
+- Logistic Regression is less expressive than more complex sequence models, but it is faster to ship, easier to interpret, and easier to roll back safely.
+- Replay is the default mode because reproducibility matters for grading and smoke tests, even though live Coinbase ingestion is also supported.
+- The API does not accept raw ticks by design. That keeps serving simple, but it means the featurizer contract has to stay stable and well documented.
 
 ## Future Improvements
-- Integrate Kafka for real time streaming data
-- Use more advanced models such as deep learning or ensemble methods
-- Add MLflow for experiment tracking and model versioning
-- Enhance monitoring with dashboards and alerting systems
-- Improve model accuracy with more features and tuning
+- Add richer microstructure signals such as order-book depth if a higher-fidelity feed becomes available.
+- Automate alerting and retraining triggers on top of the existing monitoring and drift analysis.
+- Expand evaluation across longer time windows and additional market regimes.
 
 ## Conclusion
-This system demonstrates a functional end to end pipeline for deploying a machine learning model as a real time service. The interim version establishes a strong foundation that can be extended into a production grade system.
+This system now demonstrates a full team-project deliverable rather than an interim stub: real-time ingestion, engineered-feature inference, versioned model serving, observability, and rollback all work together around one canonical 7-feature API contract.

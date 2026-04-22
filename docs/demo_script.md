@@ -46,7 +46,10 @@ curl -s -X POST http://localhost:8000/predict \
      -d @handoff/data_sample/sample.json | jq .
 ```
 
-Call out in `/version`: `model_path`, `git_sha`, `variant: "ml"`, `baseline_vol_threshold`. Then:
+Call out in `/version`: `model`, `version`, `stage`, `source`, `run_id`, and `sha`.
+Mention that `stage` and `run_id` go `null` on pickle fallback, but the response
+shape stays the same. Also point out that `/predict` is a post-featurization API:
+the payload is a row of engineered features, not a raw tick. Then:
 
 ```bash
 curl -s http://localhost:8000/metrics | grep predict_request

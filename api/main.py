@@ -33,7 +33,7 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
@@ -159,8 +159,8 @@ ACTIVE_VARIANT = Gauge(
 )
 ACTIVE_VARIANT.labels(model_variant=MODEL_VARIANT).set(1)
 # Tracks how old the feature data is (seconds between feature timestamp and now).
-# TickRow has no ts field, so this uses request receipt time as a degraded fallback —
-# meaning it reflects API processing lag (~0ms), not true pipeline freshness.
+# Older payloads may omit `ts`, in which case the service falls back to request
+# processing lag as a degraded proxy rather than true feature freshness.
 FEATURE_FRESHNESS = Gauge(
     "feature_freshness_seconds",
     "Seconds between the incoming feature row's timestamp and now",
@@ -172,28 +172,64 @@ FEATURE_FRESHNESS = Gauge(
 
 
 class TickRow(BaseModel):
-    """A single observation with the 7 required features."""
+    """One already-featurized observation sent to `/predict`.
 
-    log_return: float
-    spread_bps: float
-    vol_60s: float
-    mean_return_60s: float
-    trade_intensity_60s: float
-    n_ticks_60s: float
-    spread_mean_60s: float
-    # ISO-8601 timestamp from the featurizer; used to compute feature_freshness_seconds
-    ts: str | None = None
+    The API boundary is post-featurization: raw Coinbase ticks stay upstream,
+    and the prediction service accepts the engineered 60-second features below.
+    """
+
+    log_return: float = Field(description="Instantaneous log-return vs the previous tick.")
+    spread_bps: float = Field(description="Current bid-ask spread in basis points.")
+    vol_60s: float = Field(description="Rolling 60-second standard deviation of log-returns.")
+    mean_return_60s: float = Field(description="Rolling 60-second mean log-return.")
+    trade_intensity_60s: float = Field(
+        description="Ticks per second over the trailing 60-second window."
+    )
+    n_ticks_60s: float = Field(
+        description="Raw tick count over the trailing 60-second window."
+    )
+    spread_mean_60s: float = Field(
+        description="Rolling 60-second mean absolute spread."
+    )
+    ts: str | None = Field(
+        default=None,
+        description=(
+            "Optional ISO-8601 feature timestamp used to compute "
+            "feature_freshness_seconds."
+        ),
+    )
 
 
 class PredictRequest(BaseModel):
+    """Batch request for already-engineered feature rows."""
+
     rows: list[TickRow]
 
 
 class PredictResponse(BaseModel):
-    scores: list[float]
-    model_variant: str
-    version: str
-    ts: str
+    scores: list[float] = Field(description="Predicted positive-class scores per row.")
+    model_variant: str = Field(description="Active scoring backend: 'ml' or 'baseline'.")
+    version: str = Field(description="Human-readable model bundle version.")
+    ts: str = Field(description="UTC wall-clock timestamp when scoring completed.")
+
+
+class VersionResponse(BaseModel):
+    """Metadata for the model artifact loaded by the API at startup."""
+
+    model: str = Field(description="Registered model name.")
+    version: str = Field(description="Human-readable model bundle version.")
+    stage: str | None = Field(
+        default=None,
+        description="MLflow stage when loaded from the registry; null on pickle fallback.",
+    )
+    source: str = Field(
+        description="Artifact source used at startup: 'mlflow' or 'pickle'."
+    )
+    run_id: str | None = Field(
+        default=None,
+        description="MLflow run ID for the loaded model; null on pickle fallback.",
+    )
+    sha: str = Field(description="Short Git commit SHA for the running service.")
 
 
 # ---------------------------------------------------------------------------
@@ -228,17 +264,18 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/version")
+@app.get("/version", response_model=VersionResponse)
 def version():
+    """Return the exact metadata shape documented for the deployed model."""
     # source/stage/run_id reflect whichever load path was taken at startup
-    return {
-        "model": MODEL_NAME,
-        "version": MODEL_VERSION,
-        "stage": MODEL_STAGE if model_source == "mlflow" else None,
-        "source": model_source,
-        "run_id": mlflow_run_id,
-        "sha": GIT_SHA,
-    }
+    return VersionResponse(
+        model=MODEL_NAME,
+        version=MODEL_VERSION,
+        stage=MODEL_STAGE if model_source == "mlflow" else None,
+        source=model_source,
+        run_id=mlflow_run_id,
+        sha=GIT_SHA,
+    )
 
 
 @app.get("/metrics")
@@ -251,19 +288,19 @@ def metrics():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
+    """Score engineered feature rows; raw tick ingestion happens upstream."""
     REQUEST_COUNT.labels(model_variant=MODEL_VARIANT).inc()
     start = time.perf_counter()
 
-    # Update feature freshness gauge.
-    # TickRow has no ts field and the API has no access to Kafka message timestamps,
-    # so we fall back to measuring request processing lag as a degraded proxy.
+    # Update feature freshness gauge when the client supplies a feature timestamp.
+    # Without `ts`, the API falls back to request processing lag as a degraded proxy.
     if req.rows and hasattr(req.rows[0], "ts") and req.rows[0].ts:
         row_ts = datetime.fromisoformat(req.rows[0].ts.replace("Z", "+00:00"))
         age = (datetime.now(timezone.utc) - row_ts).total_seconds()
         FEATURE_FRESHNESS.set(age)
     else:
         logger.warning(
-            "feature_freshness_seconds: TickRow has no ts field — "
+            "feature_freshness_seconds: request row omitted ts — "
             "setting degraded fallback (request processing lag)"
         )
         FEATURE_FRESHNESS.set(time.perf_counter() - start)
