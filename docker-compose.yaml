@@ -120,6 +120,12 @@ services:
     volumes:
       - ./handoff:/app/handoff:ro
       - ./scripts:/app/scripts:ro
+      # Share the MLflow artifact volume. MLflow's file-based artifact store
+      # uploads by writing directly to the artifact URI on the client's own
+      # filesystem, not through the tracking server. Without this mount the
+      # uploaded artifacts land on mlflow-init's ephemeral layer and vanish
+      # when the one-shot container exits, even though the run is recorded.
+      - mlflow-data:/mlruns
     depends_on:
       mlflow:
         condition: service_healthy
@@ -150,8 +156,22 @@ services:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       MODEL_NAME: ${MODEL_NAME:-btc-volatility-lr}
       MODEL_STAGE: ${MODEL_STAGE:-Production}
+    # Mount the shared MLflow artifact volume so the API can resolve
+    # `models:/...` URIs directly from /mlruns/artifacts on disk. Without this
+    # mount, the registry lookup still succeeds over REST but the artifact
+    # download fails and the loader silently falls back to the local pickle.
+    # Mounted read-write (not :ro) because mlflow 2.12's sklearn loader writes
+    # a `registered_model_meta` cache file into the artifact directory on load;
+    # a read-only mount causes an Errno 30 and the same silent pickle fallback.
+    volumes:
+      - mlflow-data:/mlruns
     depends_on:
       kafka:
+        condition: service_healthy
+      # Direct healthcheck dependency on mlflow — mlflow-init already gates on
+      # this transitively, but naming it here makes the contract explicit for
+      # anyone reading the compose file in isolation.
+      mlflow:
         condition: service_healthy
       mlflow-init:
         condition: service_completed_successfully

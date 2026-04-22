@@ -67,17 +67,32 @@ def main():
     # ------------------------------------------------------------------
     # 1. Load pickle bundle and compute hash for idempotency
     # ------------------------------------------------------------------
+    # Compute hash of the source pickle for matching against registry tags
     pickle_hash = _sha256_file(MODEL_ARTIFACT_PATH)
 
+    # Look for an existing Production version tagged with this exact pickle hash
     existing = _get_production_version_with_hash(MODEL_NAME, pickle_hash)
     if existing is not None:
-        # Same artifact already registered — skip and exit cleanly
-        print(
-            f"Production version already exists with same pickle hash "
-            f"(run_id={existing.run_id}). Skipping."
-        )
-        print(existing.run_id)
-        sys.exit(0)
+        # Registry remembers this version, but its artifact directory may have
+        # been lost (e.g. a partial volume reset that kept the sqlite db but
+        # dropped /mlruns/artifacts/). Probe by actually loading the model —
+        # if the artifact download fails, treat it as not-registered and fall
+        # through to the re-registration path below so cold-start recovers.
+        try:
+            mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/Production")
+        except Exception as exc:
+            print(
+                f"Production version {existing.version} exists in the registry "
+                f"but its artifacts are not loadable ({exc}); re-registering."
+            )
+        else:
+            # Artifacts are present AND loadable — safe to skip re-upload
+            print(
+                f"Production version already exists with same pickle hash "
+                f"(run_id={existing.run_id}). Skipping."
+            )
+            print(existing.run_id)
+            sys.exit(0)
 
     with open(MODEL_ARTIFACT_PATH, "rb") as f:
         bundle = pickle.load(f)

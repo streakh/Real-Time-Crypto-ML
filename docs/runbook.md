@@ -29,6 +29,36 @@ docker compose ps                      # 9 long-lived services should be Up; kaf
 curl http://localhost:8000/health      # → {"status":"ok"}
 ```
 
+### First-Time Setup
+
+No manual steps are required on a fresh clone. A one-shot `mlflow-init`
+service runs automatically during `docker compose up` — it executes
+[scripts/log_model_to_mlflow.py](../scripts/log_model_to_mlflow.py) to
+log the trained pipeline to MLflow and promote version 1 to stage
+`Production`. The `api` service gates on `mlflow-init` completing
+successfully (`service_completed_successfully`), so by the time `/health`
+returns OK the registry is already populated.
+
+Verify the registration landed:
+
+```bash
+curl -s http://localhost:5001/api/2.0/mlflow/registered-models/search | jq .
+# → registered_models[0].name == "btc-volatility-lr", latest_versions[0].current_stage == "Production"
+
+curl -s http://localhost:8000/version | jq .
+# → "source": "mlflow", non-null "run_id". If source is "pickle" the registry
+#   lookup failed — see the MLflow volume notes below.
+```
+
+The `mlflow-data` named volume is shared between `mlflow`, `mlflow-init`,
+and `api` (all three need filesystem access to `/mlruns/artifacts` because
+MLflow's file-based artifact store uploads and downloads go through the
+local filesystem, not through the tracking server). If you ever wipe just
+part of the volume — e.g. the sqlite `mlflow_ui.db` survives but
+`/mlruns/artifacts/` is empty — the bootstrap script now load-probes the
+existing Production version and falls through to re-registration, so a
+plain `docker compose up -d` recovers without any manual cleanup.
+
 Open dashboards:
 
 - API metrics: http://localhost:8000/metrics

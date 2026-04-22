@@ -13,6 +13,13 @@ curl http://localhost:8000/health
 
 Use this root README together with the root `docker-compose.yaml` as the only startup guide for the team project.
 
+No manual model registration is required on a fresh clone — a one-shot
+`mlflow-init` container logs the trained pipeline to MLflow and promotes
+it to `Production` automatically, and the `api` gates on that completing.
+See [First-Time Setup in the runbook](docs/runbook.md#first-time-setup)
+for the verification commands and notes on the shared `mlflow-data`
+volume.
+
 ## Quick Test
 
 The prediction API boundary is **post-featurization**: `/predict` accepts the seven engineered 60-second features produced by the featurizer, not raw Coinbase tick messages.
