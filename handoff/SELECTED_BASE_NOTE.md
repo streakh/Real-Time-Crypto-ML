@@ -1,13 +1,13 @@
 # Selected-base
 
-This handoff uses the Logistic Regression pipeline in `handoff/models/artifacts/lr_pipeline.pkl` as the selected-base model. The shipped artifact is a **composite**: the Logistic Regression algorithm is paired with the feature set chosen by a teammate-led ablation study in the EDA notebook, not simply the first feature list that produced a working model.
+This handoff uses the Logistic Regression pipeline in `handoff/models/artifacts/lr_pipeline.pkl` as the selected-base model. The feature set was determined by a structured ablation study in the EDA notebook — not simply the first feature list that produced a working model.
 
-## Composite Model Rationale
+## Model Selection Rationale
 
-The "composite" here refers to how the two halves of the model were chosen independently and then combined:
+The algorithm and feature set were selected independently:
 
-- **Algorithm half — Logistic Regression.** Selected for operational reasons: fast to train, easy to serve, transparent coefficients, and it is the model family the current project runtime (`models/train.py`, `models/infer.py`) expects.
-- **Feature half — Variant B from the ablation study.** Selected empirically by a structured feature-ablation experiment a team member ran in the EDA, not by intuition. The ablation compared four feature variants under **identical LR hyperparameters** (`C=0.1`, `class_weight="balanced"`, `solver="lbfgs"`, `max_iter=1000`), with the operating threshold chosen on validation best-F1 and the winner picked by **validation PR-AUC**.
+- **Algorithm — Logistic Regression.** Selected for operational reasons: fast to train, easy to serve, and transparent coefficients.
+- **Feature set — Variant B from the ablation study.** Selected empirically by a structured feature-ablation experiment run in the EDA, not by intuition. The ablation compared four feature variants under **identical LR hyperparameters** (`C=0.1`, `class_weight="balanced"`, `solver="lbfgs"`, `max_iter=1000`), with the operating threshold chosen on validation best-F1 and the winner picked by **validation PR-AUC**.
 
 ### Ablation Variants Compared
 
@@ -34,9 +34,10 @@ Decision recorded in the EDA: **adopt Variant B (baseline + `spread_mean_60s`) a
 ## Exact Steps
 
 1. Create and activate a Python 3.11 virtual environment, then install `handoff/requirements.txt`.
-2. Copy `handoff/.env.example` to `.env` from the repo root.
-3. Start the services with `docker compose -f handoff/docker/compose.yaml up -d`.
-4. Load `handoff/models/artifacts/lr_pipeline.pkl`, read the saved threshold from `bundle["tau"]` (currently `0.7015`), and score `handoff/data_sample/features_slice.parquet` or another compatible Parquet features file.
+2. Copy `handoff/docker/.env.example` to `.env` at the repo root (Part 2's root `.env.example` serves the same purpose for end-to-end runs).
+3. Build the ingestor image: `docker build -f handoff/docker/Dockerfile.ingestor -t ingestor .`
+4. Start Part 1 services: `docker compose -f handoff/docker/compose.yaml up -d` (Part 2's root `docker-compose.yaml` supersedes this for end-to-end runs).
+5. Load `handoff/models/artifacts/lr_pipeline.pkl`, read the saved threshold from `bundle["tau"]` (currently `0.7015`), and score any compatible features file.
 
 ## Why This Is The Base
 

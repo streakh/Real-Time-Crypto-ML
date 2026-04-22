@@ -182,6 +182,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       TOPIC_RAW: ticks.raw
+      REPLAY_SPEED: ${REPLAY_SPEED:-1.0}
     volumes:
       - ./handoff/data_sample:/app/data_sample:ro
     command:

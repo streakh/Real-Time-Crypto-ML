@@ -94,18 +94,27 @@ def test_sample_json_payload(client):
 
 
 if __name__ == "__main__":
-    tests = [
-        test_health,
-        test_version,
-        test_version_source,
-        test_predict_single,
-        test_predict_batch,
-        test_predict_missing_field,
-        test_metrics,
+    import sys
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    client = TestClient(app)
+    failures = 0
+
+    # Only include tests whose signature is `def test_*(client)`.
+    # Tests requiring other pytest fixtures must be run via `pytest`.
+    tests_to_run = [
+        ("test_version", lambda: test_version(client)),
+        ("test_version_source", lambda: test_version_source(client)),
+        ("test_sample_json_payload", lambda: test_sample_json_payload(client)),
     ]
-    for t in tests:
+
+    for name, fn in tests_to_run:
         try:
-            t()
-            print(f"  PASS  {t.__name__}")
+            fn()
+            print(f"PASS: {name}")
         except Exception as e:
-            print(f"  FAIL  {t.__name__}: {e}")
+            print(f"FAIL: {name}: {e}")
+            failures += 1
+
+    sys.exit(1 if failures else 0)
