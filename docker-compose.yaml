@@ -2,9 +2,11 @@
 # docker-compose.yaml — Canonical compose for the BTC Volatility Spike Detector
 # =============================================================================
 #
+# This is the runtime entrypoint for the team project. The compose file under
+# handoff/ is preserved for Part 1 reference only.
 # Run from repo root:
-#   cp .env.example .env
-#   docker compose up -d --build
+#   cp .env.example .env   # optional: override defaults
+#   docker compose up -d
 #
 # Services overview and healthcheck strategy
 # ------------------------------------------
@@ -30,7 +32,6 @@ services:
   # ---- Kafka (KRaft, no Zookeeper) ----
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka
     ports:
       - "9092:9092"
     environment:
@@ -63,7 +64,6 @@ services:
   # ---- One-shot: create Kafka topics ----
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka-init
     depends_on:
       kafka:
         condition: service_healthy
@@ -79,7 +79,6 @@ services:
   # ---- MLflow tracking server ----
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.12.2
-    container_name: mlflow
     ports:
       - "5001:5000"
     command: >
@@ -110,7 +109,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: mlflow-init
     command: python scripts/log_model_to_mlflow.py
     environment:
       # Use internal Docker service name + container port (5000), not host port
@@ -139,7 +137,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: api
     ports:
       - "8000:8000"
     environment:
@@ -173,7 +170,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
-    container_name: ingestor
     depends_on:
       kafka:
         condition: service_healthy
@@ -208,7 +204,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
-    container_name: ws-ingestor
     depends_on:
       kafka:
         condition: service_healthy
@@ -236,7 +231,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
-    container_name: featurizer
     depends_on:
       kafka:
         condition: service_healthy
@@ -262,7 +256,6 @@ services:
   # ---- Kafka exporter (consumer-group lag → Prometheus) ----
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.7.0
-    container_name: kafka-exporter
     command: ["--kafka.server=kafka:29092"]
     depends_on:
       kafka:
@@ -277,7 +270,6 @@ services:
   # ---- Prometheus ----
   prometheus:
     image: prom/prometheus:v2.54.1
-    container_name: prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -300,7 +292,6 @@ services:
   # ---- Grafana ----
   grafana:
     image: grafana/grafana:11.2.0
-    container_name: grafana
     ports:
       - "3000:3000"
     environment:

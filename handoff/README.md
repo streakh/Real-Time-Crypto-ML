@@ -1,4 +1,22 @@
-# BTC Volatility Spike Detector — Handoff Package
+# BTC Volatility Spike Detector — Handoff Package (Reference Only)
+
+This folder preserves the original Part 1 individual-assignment handoff for
+reference, provenance, and compliance. It is not the runtime entrypoint for the
+Part 2 team project.
+
+## Runtime entrypoint for the team project
+
+Start the system from the repo root only:
+
+```bash
+cp .env.example .env   # optional: override defaults
+docker compose up -d
+```
+
+Use the root [`README.md`](../README.md) and root
+[`docker-compose.yaml`](../docker-compose.yaml) for startup, health checks,
+replay vs live mode, and rollback instructions. Do not run
+`handoff/docker/compose.yaml` for the team project.
 
 ## Model Selection: Selected-Base
 
@@ -6,69 +24,12 @@ The deployed model is the **Logistic Regression pipeline** (`models/artifacts/lr
 
 ---
 
-## How to Run
-
-### 1. Install Requirements
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Set Up the .env File
-
-Copy the example and fill in your values:
-
-```bash
-cp docker/.env.example .env
-```
-
-Open `.env` and set `KAFKA_BOOTSTRAP_SERVERS` (default `localhost:9092`). The Coinbase API keys are optional — only needed for authenticated WebSocket channels.
-
-### 3. Run Docker Compose
-
-Start Kafka and MLflow:
-
-```bash
-docker compose -f docker/compose.yaml up -d
-```
-
-Wait for the Kafka healthcheck to pass (~20 seconds), then verify topics were created:
-
-```bash
-docker logs kafka-init
-```
-
-### 4. Load the Model and Run Inference
-
-The model uses a **probability threshold of 0.7015** — a tick is predicted as a volatility spike when `y_prob >= 0.7015`.
-
-```python
-import pickle
-import pandas as pd
-
-with open("models/artifacts/lr_pipeline.pkl", "rb") as f:
-    bundle = pickle.load(f)
-
-pipeline     = bundle["pipeline"]      # sklearn Pipeline (StandardScaler + LogisticRegression)
-feature_cols = bundle["feature_cols"]  # list of 7 feature column names
-tau          = bundle["tau"]            # probability threshold (auto-selected from validation best-F1)
-
-df      = pd.read_parquet("data_sample/features_slice.parquet")  # or your own features file
-X       = df[feature_cols].values
-y_prob  = pipeline.predict_proba(X)[:, 1]
-y_pred  = (y_prob >= tau).astype(int)
-
-print(f"Spike rate: {y_pred.mean()*100:.1f}%")
-```
-
----
-
 ## Package Contents
 
-```
+```text
 handoff/
 ├── docker/
-│   ├── compose.yaml          Kafka + MLflow services
+│   ├── compose.yaml          Historical Part 1 compose artifact (do not run here)
 │   ├── Dockerfile.ingestor   WebSocket ingestor container
 │   └── .env.example          Environment variable template
 ├── docs/
@@ -90,13 +51,9 @@ handoff/
 
 ---
 
-## Week 4 Interim Deliverables
+## Sample curl for /predict
 
-### Working API
-
-For live serving, use the Part 2 root-level `docker compose up -d`. This handoff folder contains the Part 1 ingestor and model artifact only.
-
-### Sample curl for /predict (once the Part 2 API is running)
+Once the root stack is running:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/predict" \

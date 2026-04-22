@@ -2,14 +2,16 @@
 
 Real-time crypto ML service: Coinbase-style ticks → Kafka → rolling-window features → FastAPI prediction. Runs end-to-end in replay mode from a bundled 10-minute sample, with Prometheus + Grafana monitoring and a `MODEL_VARIANT=ml|baseline` rollback toggle.
 
-## Setup
+## Canonical startup
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
-# Wait ~30s for Kafka healthcheck, then:
+cp .env.example .env   # optional: override defaults
+docker compose up -d
+# Wait ~30s for Kafka and MLflow init, then:
 curl http://localhost:8000/health
 ```
+
+Use this root README together with the root `docker-compose.yaml` as the only startup guide for the team project.
 
 ## Quick Test
 
@@ -109,7 +111,7 @@ config.yaml           Featurizer config
 
 ## Notes on `handoff/`
 
-The `handoff/` folder is the original handoff bundle from the individual assignment — preserved verbatim for provenance. It contains its own `README.md`, `docker/compose.yaml`, and docs. **The canonical compose for running the system is `docker-compose.yaml` at the repo root**, not the one inside `handoff/`.
+The `handoff/` folder preserves the original Part 1 handoff artifacts for reference and compliance. It is not the runtime entrypoint for the Part 2 team project. Do not launch the system from `handoff/README.md` or `handoff/docker/compose.yaml`; use this root README and the root `docker-compose.yaml` instead.
 
 ## CI
 
