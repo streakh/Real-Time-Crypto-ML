@@ -101,9 +101,7 @@ if MODEL_VARIANT == "ml":
         logger.info("Loaded model from MLflow run %s", mlflow_run_id)
 
     except Exception as _mlflow_exc:
-        logger.warning(
-            "MLflow unavailable (%s), falling back to pickle", _mlflow_exc
-        )
+        logger.warning("MLflow unavailable (%s), falling back to pickle", _mlflow_exc)
         # Fall back to local pickle bundle
         _model_path = Path(MODEL_PATH)
         if not _model_path.exists():
@@ -178,9 +176,13 @@ class TickRow(BaseModel):
     and the prediction service accepts the engineered 60-second features below.
     """
 
-    log_return: float = Field(description="Instantaneous log-return vs the previous tick.")
+    log_return: float = Field(
+        description="Instantaneous log-return vs the previous tick."
+    )
     spread_bps: float = Field(description="Current bid-ask spread in basis points.")
-    vol_60s: float = Field(description="Rolling 60-second standard deviation of log-returns.")
+    vol_60s: float = Field(
+        description="Rolling 60-second standard deviation of log-returns."
+    )
     mean_return_60s: float = Field(description="Rolling 60-second mean log-return.")
     trade_intensity_60s: float = Field(
         description="Ticks per second over the trailing 60-second window."
@@ -208,7 +210,9 @@ class PredictRequest(BaseModel):
 
 class PredictResponse(BaseModel):
     scores: list[float] = Field(description="Predicted positive-class scores per row.")
-    model_variant: str = Field(description="Active scoring backend: 'ml' or 'baseline'.")
+    model_variant: str = Field(
+        description="Active scoring backend: 'ml' or 'baseline'."
+    )
     version: str = Field(description="Human-readable model bundle version.")
     ts: str = Field(description="UTC wall-clock timestamp when scoring completed.")
 
