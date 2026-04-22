@@ -2,17 +2,14 @@
 End-to-end replay integration test.
 
 Verifies the full pipeline: ingestor → Kafka → featurizer → ticks.features → /predict.
-Requires the full docker compose stack to be running (or starts it if not reachable).
+Requires the full docker compose stack to be running already.
 
-Run locally (stack already up):
+Run locally:
+    docker compose up -d
     pytest tests/test_replay_integration.py -v
-
-Run locally (auto-start stack):
-    REPLAY_SPEED=50 pytest tests/test_replay_integration.py -v
 """
 
 import json
-import subprocess
 import time
 import uuid
 
@@ -54,23 +51,16 @@ def _wait_for_api(timeout: int = 60) -> None:
         time.sleep(2)
     raise RuntimeError(
         f"API at {BASE_URL} did not become healthy within {timeout}s. "
-        "Make sure the full stack is running: docker compose up -d --build"
+        "Start the repo stack first with `docker compose up -d` and wait for "
+        "`curl http://localhost:8000/health` to return ok."
     )
 
 
 @pytest.fixture(scope="module", autouse=True)
-def stack():
-    # Start the stack if the API is not already reachable, then yield for tests
-    if not _api_healthy():
-        subprocess.run(
-            ["docker", "compose", "up", "-d", "--build"],
-            check=True,
-        )
-    _wait_for_api(timeout=60)
+def stack_ready():
+    # CI starts the stack explicitly; local runs should do the same.
+    _wait_for_api(timeout=120)
     yield
-    # Teardown is intentionally skipped here so a local developer's stack
-    # is not torn down after running a single test file. CI tears down in
-    # the always() step of the workflow.
 
 
 def test_replay_pipeline_produces_features_and_scores():
@@ -79,18 +69,21 @@ def test_replay_pipeline_produces_features_and_scores():
     and assert the response is a valid score between 0 and 1.
     """
     # Use a unique group ID so each test run reads from the earliest offset
-    consumer = Consumer({
-        "bootstrap.servers": KAFKA_BOOTSTRAP,
-        "group.id": f"test-replay-{uuid.uuid4()}",
-        "auto.offset.reset": "earliest",
-        "enable.auto.commit": False,
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BOOTSTRAP,
+            "group.id": f"test-replay-{uuid.uuid4()}",
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+        }
+    )
 
     try:
         consumer.subscribe([FEATURES_TOPIC])
 
-        # Poll for up to 60 seconds for the first feature message
-        deadline = time.monotonic() + 60
+        # Default replay speed is slower than CI, so allow enough time for the
+        # first full 60-second feature window to be produced after startup.
+        deadline = time.monotonic() + 180
         feature_msg = None
 
         while time.monotonic() < deadline:
@@ -103,9 +96,10 @@ def test_replay_pipeline_produces_features_and_scores():
             break
 
         assert feature_msg is not None, (
-            f"No messages arrived on '{FEATURES_TOPIC}' within 60s. "
-            "Check that the ingestor and featurizer containers are running "
-            "and that REPLAY_SPEED is set high enough for CI."
+            f"No messages arrived on '{FEATURES_TOPIC}' within 180s. "
+            "Check that the replay stack is healthy and producing features. "
+            "CI speeds this up with REPLAY_SPEED=50, but the test should also "
+            "pass against the default replay once startup has completed."
         )
 
         # Extract only the 7 fields the API needs
@@ -121,10 +115,10 @@ def test_replay_pipeline_produces_features_and_scores():
         assert r.status_code == 200, f"/predict returned {r.status_code}: {r.text}"
 
         body = r.json()
-        assert "scores" in body,        "Response missing 'scores'"
+        assert "scores" in body, "Response missing 'scores'"
         assert "model_variant" in body, "Response missing 'model_variant'"
-        assert "version" in body,       "Response missing 'version'"
-        assert "ts" in body,            "Response missing 'ts'"
+        assert "version" in body, "Response missing 'version'"
+        assert "ts" in body, "Response missing 'ts'"
         assert len(body["scores"]) == 1, f"Expected 1 score, got {len(body['scores'])}"
         score = body["scores"][0]
         assert isinstance(score, float), f"Score is not a float: {score!r}"
