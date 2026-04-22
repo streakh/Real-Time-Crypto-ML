@@ -24,6 +24,8 @@ volume.
 
 The prediction API boundary is **post-featurization**: `/predict` accepts the seven engineered 60-second features produced by the featurizer, not raw Coinbase tick messages.
 
+> **API schema note:** The `/predict` endpoint accepts the 7 engineered features the model was trained on (see [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md)). This is a post-featurization boundary and differs from the 3-field illustrative example in the assignment spec — per instructor guidance, the schema must match the trained model's features.
+
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H 'Content-Type: application/json' \
@@ -140,4 +142,11 @@ The `handoff/` folder preserves the original Part 1 handoff artifacts for refere
 
 ## CI
 
-GitHub Actions runs Black + Ruff + a smoke test on every push (`.github/workflows/ci.yaml`).
+CI runs lint (Black/Ruff) plus a replay integration smoke test. Full stack bring-up is validated locally, not in CI, per instructor guidance.
+
+Specifically, `.github/workflows/ci.yaml` runs two jobs on every push to `main` and on every pull request:
+
+1. **`lint`** — runs `black --check` and `ruff check` across `api/` and `tests/`.
+2. **`integration-replay`** — starts the Docker Compose stack, waits for `/health`, runs `pytest tests/test_replay_integration.py`, and tears down. This is the smoke-level integration gate; comprehensive multi-scenario load testing is validated locally before merge.
+
+The CI does not attempt to reproduce the full production monitoring stack validation (Grafana panels, Prometheus scrape correctness, Kafka-exporter lag) in the GitHub Actions runner — those are covered by the local smoke test documented in [docs/runbook.md](docs/runbook.md).

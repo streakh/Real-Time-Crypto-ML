@@ -35,6 +35,12 @@ If any budget is burned more than 50 % within a 24 h window, the on-call action 
 
 Full report: [latency_report.md](latency_report.md).
 
+## Alerting approach
+
+Alerting is dashboard-based per instructor guidance. Breach visibility is via Grafana panels rather than push notifications. Operators monitor the dashboard during demos and scheduled check-ins.
+
+The Grafana dashboard "BTC Volatility Detector — API" at http://localhost:3000 surfaces all seven SLO signals above as live panels. The on-call response when a panel crosses threshold is documented in the [runbook](runbook.md) — each SLO has a corresponding failure mode entry with a 1-line recovery command. Push-notification alerting (PagerDuty, Slack webhooks, Prometheus Alertmanager rules) is not configured in this submission.
+
 ## Out of scope
 
 - Cold-start latency (model load takes ~2 s; not measured here).

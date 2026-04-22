@@ -12,7 +12,7 @@ Single-page summary of the production system's measured performance against the 
 | Replay runtime lag panels | **`ticks-featurizer` + `predict-bridge` visible** | required | PASS |
 | Held-out test PR-AUC, ML vs baseline | **0.1459 vs 0.1340** | ML > baseline | PASS (+8.9 %) |
 | Rollback time, ML → baseline | **< 10 s** | manual, fast | PASS |
-| Services up under `docker compose up -d` | **9 / 9** | 9 / 9 | PASS |
+| Services reaching healthy state after `docker compose up -d` | **All 9 / 9** | 9 / 9 | PASS |
 | Live Coinbase ingestion (`--profile live`) | **verified** | available | PASS |
 
 ## Replay mode is now truly end-to-end
@@ -65,6 +65,8 @@ Full methodology and percentiles in [`latency_report.md`](./latency_report.md). 
 
 ## Uptime / availability
 
+All 9 services reach healthy state after `docker compose up -d`. The load test achieves a 100% success rate (100/100 requests) with p95 latency well under the 800 ms SLO.
+
 We do not run a long-horizon uptime measurement (this is a coursework deployment, not a 24×7 service), so availability is reported as an **SLO with a recovery contract** rather than a measured number:
 
 - **Target:** 99.0 % monthly success rate on `/health` and `/predict` (≈ 7 h 18 min monthly error budget).
@@ -99,7 +101,7 @@ The Grafana **Active variant** stat panel (top-left of the API dashboard) flips 
 
 ## Drift posture
 
-Full report in [`drift_summary.md`](./drift_summary.md). One-line version: 5 of 7 input features show distribution drift between the training reference and the held-out test slice, but the model still beats the baseline on PR-AUC because the **rank ordering** the LR coefficients depend on is preserved. The Evidently HTML lives at `handoff/reports/train_vs_test.html` and can be regenerated against fresh production features with `scripts/drift_report.py`.
+Full report in [`drift_summary.md`](./drift_summary.md). One-line version: 3 of 7 input features show distribution drift between the training reference and the held-out test slice (`n_ticks_60s`, `trade_intensity_60s`, `spread_mean_60s`), but the model still beats the baseline on PR-AUC because the **rank ordering** the LR coefficients depend on is preserved. The Evidently HTML lives at `handoff/reports/train_vs_test.html` and can be regenerated against fresh production features with `scripts/drift_report.py`.
 
 ## What this means for production readiness
 

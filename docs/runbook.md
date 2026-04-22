@@ -86,6 +86,8 @@ python tests/load_test.py              # 100 burst requests, expect p95 < 800ms
 `trade_intensity_60s`, `n_ticks_60s`, `spread_mean_60s`) plus optional `ts`,
 not raw Coinbase tick messages.
 
+> **Schema note:** The 7-field request body is the schema the model was trained on (see [`handoff/docs/feature_spec.md`](../handoff/docs/feature_spec.md)). This differs from the 3-field illustrative example in the assignment spec — per instructor guidance, the schema matches the trained model's features, not the spec's placeholder.
+
 Replay mode is now truly end-to-end inside Compose: `ingestor` produces
 `ticks.raw`, `featurizer` produces `ticks.features`, and `predict-bridge`
 automatically POSTs each feature row into `/predict`. You can confirm that hop

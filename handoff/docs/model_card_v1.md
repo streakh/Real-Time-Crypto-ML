@@ -9,7 +9,7 @@
 | Type | Binary classifier — Logistic Regression |
 | Framework | scikit-learn 1.4+ |
 | Artifact | `models/artifacts/lr_pipeline.pkl` |
-| MLflow experiment | `btc-volatility` |
+| MLflow experiment | `btc-volatility-lr` |
 | Date | 2026-04-07 |
 
 **Architecture:** `StandardScaler → LogisticRegression(C=0.1, class_weight='balanced')`

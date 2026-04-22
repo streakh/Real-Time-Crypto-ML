@@ -1,8 +1,10 @@
 # Drift Summary
 
+> **Note:** This is a snapshot report, not a live-scheduled monitor. Per instructor guidance, a point-in-time Evidently analysis of the train vs. test split is the required deliverable. Continuous drift scheduling is out of scope for this submission.
+
 ## Canonical Drift Report
 
-The authoritative drift analysis for this project is `handoff/reports/train_vs_test.html`, generated during Part 1 model development.
+The authoritative drift analysis for this project is [`handoff/reports/train_vs_test.html`](../handoff/reports/train_vs_test.html), generated during Part 1 model development.
 
 ## Analysis Parameters
 
@@ -39,6 +41,6 @@ The three drifted features — `n_ticks_60s`, `trade_intensity_60s`, and `spread
 
 The full training reference dataset (`features.parquet`, 784K rows, 48MB) is not committed to this repo due to GitHub file size limits. It lives in the model training environment. For reproducibility, a 10-minute sample of the feature schema is committed at `handoff/data_sample/features_slice.csv`.
 
-## Scheduled Drift Monitoring
+## Drift Monitoring Approach
 
-[Placeholder — pending team decision on scheduled drift infrastructure.]
+This report is a **snapshot** taken at model evaluation time (train split vs. test split). Per instructor guidance, a live-scheduled drift monitor is not required for this submission. The Evidently HTML report at [`handoff/reports/train_vs_test.html`](../handoff/reports/train_vs_test.html) is the authoritative artifact, and the drift script at `scripts/drift_report.py` can be re-run against fresh production features to regenerate it on demand.
