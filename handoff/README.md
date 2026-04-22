@@ -61,15 +61,6 @@ y_pred  = (y_prob >= tau).astype(int)
 print(f"Spike rate: {y_pred.mean()*100:.1f}%")
 ```
 
-Or use the inference script directly:
-
-```bash
-python models/infer.py \
-  --features data_sample/features_slice.csv \
-  --model    models/artifacts/lr_pipeline.pkl \
-  --output   predictions.csv
-```
-
 ---
 
 ## Package Contents
@@ -102,13 +93,10 @@ handoff/
 ## Week 4 Interim Deliverables
 
 ### Working API
-Run the FastAPI service locally:
 
-```bash
-uvicorn api.main:app --reload --port 8000
-```
+For live serving, use the Part 2 root-level `docker compose up -d`. This handoff folder contains the Part 1 ingestor and model artifact only.
 
-### Sample curl for /predict
+### Sample curl for /predict (once the Part 2 API is running)
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/predict" \

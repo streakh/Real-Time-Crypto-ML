@@ -118,7 +118,7 @@ Drift detected on the **target label (`vol_spike`)** between early and late wind
 | Drift detected | Yes |
 
 This reflects the spike rate shifting from ~15% (early/mid collection) to ~7% (later collection). This is consistent with a genuine change in market volatility regime during the collection period — the test window landed on a quieter stretch.
-Evidently HTML reports: `reports/evidently/feature_drift.html`, `reports/evidently/target_drift.html`
+Evidently HTML report: `reports/train_vs_test.html` (combined feature + target drift).
 
 ---
 
