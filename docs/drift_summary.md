@@ -1,5 +1,6 @@
-# Drift Summary — Train vs Test
+# Drift Summary
 
+This document summarizes feature drift between the training and test datasets using Evidently. The goal is to identify distribution shifts that may impact model performance in deployment.
 Source report: [`handoff/reports/train_vs_test.html`](../handoff/reports/train_vs_test.html) (Evidently 0.4.33).
 
 ## Setup
@@ -22,7 +23,7 @@ Source report: [`handoff/reports/train_vs_test.html`](../handoff/reports/train_v
 | `log_return` | Wasserstein | 0.0010 | Stable |
 | `mean_return_60s` | Wasserstein | 0.0001 | Stable |
 
-## Top-line findings
+## Key Findings
 
 1. **The two highest-drift features (`trade_intensity_60s`, `n_ticks_60s`) are the same signal** — both count ticks per second over a 60 s window, just expressed differently. The 0.42 Wasserstein score indicates BTC trading activity in the test window is materially different from the training window (likely a different market regime: weekend/weekday split, a US-vs-Asia session shift, or a volatility cluster in one period not the other).
 2. **`spread_mean_60s` drifted moderately (0.19)** — consistent with the liquidity-regime hypothesis above.
@@ -32,7 +33,7 @@ Source report: [`handoff/reports/train_vs_test.html`](../handoff/reports/train_v
 ## Implications for the served model
 
 - The LR pipeline uses `trade_intensity_60s`, `n_ticks_60s`, and `spread_mean_60s` as features, so test-time predictions are extrapolating into a region of feature space the model saw less of during training. This is the most plausible explanation for the modest val→test PR-AUC gap noted in `handoff/SELECTED_BASE_NOTE.md`.
-- No immediate action needed — the model still beats the z-score baseline on test PR-AUC (0.146 vs 0.134). But this is the canonical signal to **retrain on a more recent window** before promoting to production.
+- No immediate action is required, as the model continues to outperform the z-score baseline on test PR-AUC (0.146 vs 0.134). But this is the canonical signal to **retrain on a more recent window** before promoting to production.
 
 ## How to regenerate
 
