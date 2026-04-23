@@ -3,10 +3,11 @@
 
 ## Quick Start
 
-bash
+```bash
 docker compose up -d --build
 curl http://localhost:8000/health
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d @handoff/data_sample/sample.json
+```
 
 Real time crypto ML service that streams Coinbase style ticks into Kafka, generates rolling window features, and serves predictions via a FastAPI API. The system runs end to end in replay mode with Prometheus and Grafana monitoring, and supports rollback using MODEL_VARIANT.
 
@@ -50,16 +51,17 @@ The system runs fully in replay mode by default, ensuring reproducibility withou
 
 ## Data Ingestion Modes
 
-The default `docker compose up -d` runs the **replay** ingestor — loops a 10-minute Coinbase capture through Kafka at the original timestamps. Reproducible, no network dependency, what graders should run.
+The default `docker compose up -d` runs the replay ingestor, which loops a 10 minute Coinbase capture through Kafka at original timestamps. This ensures reproducibility without external dependencies.
 
-To switch to **live** ingestion from Coinbase's public WebSocket (no API keys required, public ticker channel):
+To switch to live ingestion from Coinbase public WebSocket:
 
 ```bash
 docker compose stop ingestor
 docker compose --profile live up -d ws-ingestor
 ```
 
-Both ingestion modes publish to the same ticks.raw Kafka topic, so run only one at a time. The featurizer, API, and monitoring stack are agnostic to the source — same Kafka payload schema either way.
+Both ingestion modes publish to the same `ticks.raw` Kafka topic, so only one should run at a time.
+
 
 ## Endpoints and Dashboards
 
