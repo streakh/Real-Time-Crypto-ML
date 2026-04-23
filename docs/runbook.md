@@ -6,17 +6,17 @@
 cp .env.example .env                   # one-time
 docker compose up -d --build           # ~30s for Kafka healthcheck to go green
 docker compose ps                      # all 8 services should be Up
-curl http://localhost:8000/health      # → {"status":"ok"}
+curl http://localhost:8000/health      # → # Expected: {"status":"ok"}
 ```
 
-Open dashboards:
+## Monitoring Dashboards
 
 - API metrics: http://localhost:8000/metrics
 - Prometheus: http://localhost:9090 (Status → Targets should show all `up`)
 - Grafana: http://localhost:3000 → dashboard "BTC Volatility Detector — API"
 - MLflow: http://localhost:5001
 
-## Smoke test
+## Prediction Test
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -27,7 +27,7 @@ curl -X POST http://localhost:8000/predict \
 python tests/load_test.py              # 100 burst requests, expect p95 < 800ms
 ```
 
-## Switch to live ingestion
+## Data Ingestion Modes
 
 The default stack runs in **replay mode** (loops a 10-minute Coinbase capture). To stream live ticks from Coinbase's public WebSocket instead:
 
@@ -46,7 +46,7 @@ docker compose up -d ingestor
 
 `ws_ingest.py` has exponential-backoff reconnect, a circuit breaker (exits non-zero after 10 consecutive failures so Compose's `restart: on-failure` rebuilds the connection), and sequence-gap logging for feed-integrity monitoring.
 
-## Rollback (ML → baseline)
+## Rollback Strategy
 
 When the ML variant misbehaves (latency burns budget, error spike, drift alert), fall back to the deterministic baseline:
 
@@ -64,7 +64,7 @@ MODEL_VARIANT=ml docker compose up -d api
 
 The Grafana **Active variant** stat panel reflects the change within ~10 s of the next Prometheus scrape.
 
-## Common failures
+## Common Failures and Fixes
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -75,7 +75,7 @@ The Grafana **Active variant** stat panel reflects the change within ~10 s of th
 | Grafana panels say "No data" | Prometheus hasn't scraped yet, or `api` job is `down` | Visit http://localhost:9090/targets and check the `api` row. If `down`, restart with `docker compose restart prometheus` |
 | Consumer-lag panel empty | `kafka-exporter` not up | `docker compose up -d kafka-exporter`; check logs |
 
-## Recovery
+## Recovery Procedures
 
 **Full reset (loses Kafka data + Grafana dashboards state, keeps source code):**
 
