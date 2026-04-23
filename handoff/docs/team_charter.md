@@ -2,12 +2,12 @@
 
 ## Team Members & Roles
 
-| Member | Primary Role | Responsibilities |
-|--------|-------------|-----------------|
-| Rico Pichardo Abreu  | Model Lead & Improvements | Base model selection, feature engineering improvements, model retraining, handoff folder maintenance |
-| Honey Streak | Infrastructure Lead | FastAPI service, Docker Compose setup, Kafka/MLflow containerization, GitHub repo structure |
-| Swetaleena Guha | Replay Pipeline & Testing | Run 10-minute slice through the pipeline, validate /predict endpoint end-to-end, write test results |
-| Irene John| Docs & Diagrams | team_charter.md, selection_rationale.md, system architecture diagram, model card updates |
+| Member | Primary Role | Core Responsibilities |
+| :--- | :--- | :--- |
+| *Rico Pichardo Abreu* | Model Lead & Ops | Model architecture, CI/CD, Monitoring (Prometheus/Grafana), SLOs, & Drift (M5-M7). |
+| *Honey Streak* | Infrastructure Lead & Ops | FastAPI deployment, Docker Compose, Kafka/MLflow, CI/CD, & System Stability (M5-M7). |
+| *Swetaleena Guha* | Pipeline, Testing & Docs | Replay pipeline execution, integration testing, system documentation, and QA. |
+| *Irene John* | Pipeline, Testing & Docs | Replay pipeline execution, integration testing, system documentation, and QA. |
 
 ---
 
