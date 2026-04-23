@@ -117,7 +117,7 @@ docker/          Dockerfile.api + Dockerfile.worker + requirements files
 monitoring/      prometheus.yml + Grafana provisioning + dashboard JSON
 docs/            Operational docs (see below)
 handoff/         Original team handoff bundle (model, data, reports, rationale)
-docker-compose.yaml   Canonical 8-service stack
+docker-compose.yaml   Canonical compose stack
 config.yaml           Featurizer config
 ```
 
@@ -130,6 +130,7 @@ config.yaml           Featurizer config
 | [`docs/latency_report.md`](docs/latency_report.md) | Load-test methodology and percentiles |
 | [`docs/drift_summary.md`](docs/drift_summary.md) | Evidently train-vs-test drift findings |
 | [`docs/runbook.md`](docs/runbook.md) | Cold start, smoke test, rollback, common failures, recovery |
+| [`docs/architecture.svg`](docs/architecture.svg) | Canonical system architecture diagram for the team-project stack |
 | [`selection_rationale.md`](selection_rationale.md) | Why the team chose this architecture, API boundary, and model |
 | [`team_charter.md`](team_charter.md) | Team roles, norms, and ways of working |
 | [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md) | Original Part 1 feature definitions and ablation notes |

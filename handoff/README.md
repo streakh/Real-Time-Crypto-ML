@@ -18,6 +18,11 @@ Use the root [`README.md`](../README.md) and root
 replay vs live mode, and rollback instructions. Do not run
 `handoff/docker/compose.yaml` for the team project.
 
+The canonical team-project architecture diagram now lives at
+[`../docs/architecture.svg`](../docs/architecture.svg). The copy at
+[`handoff/docs/architecture.svg`](docs/architecture.svg) is retained here for
+historical provenance alongside the original Part 1 handoff materials.
+
 ## Model Selection: Selected-Base
 
 The deployed model is the **Logistic Regression pipeline** (`models/artifacts/lr_pipeline.pkl`), chosen as the selected-base model. It outperforms the z-score baseline on unseen test data (Test PR-AUC 0.1459 vs 0.1340) using a time-based evaluation split with no data leakage.
