@@ -20,6 +20,8 @@ We standardized on a Logistic Regression pipeline trained on the canonical 7-fea
 `log_return`, `spread_bps`, `vol_60s`, `mean_return_60s`,
 `trade_intensity_60s`, `n_ticks_60s`, and `spread_mean_60s`.
 
+The model ships under the MLflow registry name `btc-volatility-lr` at version `v1.0` (registry version `1`, stage `Production`) — this is the same identity returned by the API's `/version` endpoint and reported by `/api/2.0/mlflow/registered-models/search`.
+
 This model choice balanced three needs:
 
 - It beat the deterministic baseline on PR-AUC while staying simple enough to explain and debug.

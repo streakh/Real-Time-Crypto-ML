@@ -4,8 +4,9 @@
 
 | Field | Value |
 |---|---|
-| Name | BTC Volatility Spike Detector |
-| Version | v1 |
+| Card title (human-readable) | BTC Volatility Spike Detector |
+| Registry name | `btc-volatility-lr` |
+| Version | `v1.0` (MLflow registry version `1`, stage `Production`) |
 | Type | Binary classifier — Logistic Regression |
 | Framework | scikit-learn 1.4+ |
 | Artifact | `models/artifacts/lr_pipeline.pkl` |
@@ -51,7 +52,7 @@ Predicts whether BTC-USD price volatility will **spike** over the next 60 second
 | `n_ticks_60s` | Tick count in 60s window |
 | `spread_mean_60s` | Mean absolute spread over 60s window |
 
-Selected via structured ablation (4 variants). `spread_mean_60s` was added based on correlation analysis showing it captures a smoothed liquidity signal that improved ablation val PR-AUC from 0.3471 (Variant A) to 0.3580 (Variant B). `price_range_60s` was tested but excluded (no lift). See `docs/feature_spec.md` for full ablation results.
+Selected via structured ablation (4 variants). `spread_mean_60s` was added based on correlation analysis showing it captures a smoothed liquidity signal that improved ablation val PR-AUC from 0.3471 (Variant A) to 0.3580 (Variant B). `price_range_60s` was tested but excluded (no lift). See `handoff/docs/feature_spec.md` for full ablation results.
 
 **Feature pipeline:** All features standardised with `StandardScaler` fitted on the training split only.
 
@@ -118,7 +119,7 @@ Drift detected on the **target label (`vol_spike`)** between early and late wind
 | Drift detected | Yes |
 
 This reflects the spike rate shifting from ~15% (early/mid collection) to ~7% (later collection). This is consistent with a genuine change in market volatility regime during the collection period — the test window landed on a quieter stretch.
-Evidently HTML report: `reports/train_vs_test.html` (combined feature + target drift).
+Evidently HTML report: `handoff/reports/train_vs_test.html` (combined feature + target drift).
 
 ---
 

@@ -55,7 +55,6 @@ Build a real-time crypto volatility detection system that ingests live BTC-USD t
 - We have created a WhatsApp group where the primary conversation will take place. All coordination, updates, and blockers should be communicated there.
 - Be responsive — a short "on it" or "blocked, need help" goes a long way.
 - Don't break `main` — test locally before pushing.
-- Document your GenAI usage in `docs/genai_appendix.md` as you go, not at the end.
 - If the model numbers change, update the canonical model card and feature spec — don't leave stale metrics in docs.
 
 ---

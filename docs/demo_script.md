@@ -4,7 +4,7 @@
 
 ```bash
 docker compose down -v
-cp .env.example .env
+cp .env.example .env   # optional — only needed if overriding defaults; plain `docker compose up -d` works on a fresh clone
 docker compose build
 ```
 

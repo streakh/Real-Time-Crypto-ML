@@ -23,7 +23,7 @@ The canonical drift analysis is `handoff/reports/train_vs_test.html`. See `docs/
 ## Startup (cold)
 
 ```bash
-cp .env.example .env                   # one-time
+cp .env.example .env                   # optional — only needed if overriding defaults; plain `docker compose up -d` works on a fresh clone
 docker compose up -d                   # ~30s for Kafka healthcheck to go green
 docker compose ps                      # 9 long-running services should be Up; kafka-init/mlflow-init should show Exited (0)
 curl http://localhost:8000/health      # → {"status":"ok"}

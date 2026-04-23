@@ -143,7 +143,7 @@ The `handoff/` folder preserves the original Part 1 handoff artifacts for refere
 
 ## CI
 
-CI runs lint (Black/Ruff) plus a replay integration smoke test. Full stack bring-up is validated locally, not in CI, per instructor guidance.
+CI runs lint (Black/Ruff) plus a replay integration smoke test that brings up the full Docker Compose stack inside the GitHub Actions runner. Deeper monitoring validation (Grafana panels, Prometheus scrape correctness, Kafka-exporter lag) is verified locally, not in CI, per instructor guidance.
 
 Specifically, `.github/workflows/ci.yaml` runs two jobs on every push to `main` and on every pull request:
 

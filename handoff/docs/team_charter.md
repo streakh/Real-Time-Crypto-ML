@@ -34,7 +34,7 @@ Build a real-time crypto volatility detection system that ingests live BTC-USD t
 - [x] `docker compose up -d` brings up Kafka, MLflow, the API, ingestor, featurizer, Prometheus, Grafana, and kafka-exporter cleanly
 - [x] All four endpoints (`/health`, `/predict`, `/version`, `/metrics`) return valid responses
 - [x] 10-minute raw slice replayed end-to-end through Kafka → features → API
-- [x] `team_charter.md` and `selection_rationale.md` committed to `docs/`
+- [x] `team_charter.md` and `selection_rationale.md` committed at the repo root
 - [x] Architecture diagram committed to `docs/`
 - [x] No secrets committed to the repo (`.env.example` only)
 - [x] CI pipeline (Black + Ruff + smoke test) passing
@@ -48,7 +48,6 @@ Build a real-time crypto volatility detection system that ingests live BTC-USD t
 - We have created a WhatsApp group where the primary conversation will take place. All coordination, updates, and blockers should be communicated there.
 - Be responsive — a short "on it" or "blocked, need help" goes a long way.
 - Don't break `main` — test locally before pushing.
-- Document your GenAI usage in `docs/genai_appendix.md` as you go, not at the end.
 - If the model numbers change, update the model card — don't leave stale metrics in docs.
 
 ---
