@@ -21,6 +21,7 @@ curl -X POST http://localhost:8000/predict \
      -H 'Content-Type: application/json' \
      -d @handoff/data_sample/sample.json
 ```
+The system runs fully in replay mode by default, ensuring reproducibility without external dependencies.
 
 ## Data Ingestion Modes
 
@@ -33,7 +34,7 @@ docker compose stop ingestor
 docker compose --profile live up -d ws-ingestor
 ```
 
-Both services publish to the same `ticks.raw` topic, so run only one at a time. The featurizer, API, and monitoring stack are agnostic to the source — same Kafka payload schema either way.
+Both ingestion modes publish to the same ticks.raw Kafka topic, so run only one at a time. The featurizer, API, and monitoring stack are agnostic to the source — same Kafka payload schema either way.
 
 ## Endpoints and Dashboards
 
