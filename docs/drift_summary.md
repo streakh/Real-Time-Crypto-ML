@@ -1,6 +1,7 @@
 # Drift Summary
 
 This document summarizes feature drift between the training and test datasets using Evidently. The goal is to identify distribution shifts that may impact model performance in deployment.
+
 Source report: [`handoff/reports/train_vs_test.html`](../handoff/reports/train_vs_test.html) (Evidently 0.4.33).
 
 ## Setup
