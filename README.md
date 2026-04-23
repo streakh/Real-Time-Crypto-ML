@@ -3,7 +3,7 @@
 
 ## Quick Start
 
-```bash
+bash
 docker compose up -d --build
 curl http://localhost:8000/health
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d @handoff/data_sample/sample.json
@@ -12,15 +12,40 @@ Real time crypto ML service that streams Coinbase style ticks into Kafka, genera
 
 ## Setup
 
+### Environment
+
 ```bash
 cp .env.example .env
-docker compose up -d --build
-# Wait ~30s for Kafka healthcheck, then:
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/predict \
-     -H 'Content-Type: application/json' \
-     -d @handoff/data_sample/sample.json
 ```
+
+### Start Services
+
+```bash
+docker compose up -d --build
+```
+
+Wait ~30 seconds for Kafka healthcheck to pass.
+
+### Verify Service
+
+```bash
+curl http://localhost:8000/health
+```
+
+Expected:
+
+```json
+{"status":"ok"}
+```
+
+### Test Prediction
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d @handoff/data_sample/sample.json
+```
+
 The system runs fully in replay mode by default, ensuring reproducibility without external dependencies.
 
 ## Data Ingestion Modes
