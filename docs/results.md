@@ -6,7 +6,7 @@ Single-page summary of the production system's measured performance against the 
 
 | Dimension | Result | Target | Status |
 |---|---:|---:|:---:|
-| `/predict` latency p95 (single row) | **255.2 ms** | ≤ 800 ms | PASS (~3× headroom) |
+| `/predict` latency p95 (single row) | **106.4 ms** | ≤ 800 ms | PASS |
 | `/predict` success rate (100-burst) | **100 %** (100 / 100) | ≥ 99.0 % | PASS |
 | Replay mode drives real `/predict` traffic | **verified via `predict_requests_total`** | required | PASS |
 | Replay runtime lag panels | **`ticks-featurizer` + `predict-bridge` visible** | required | PASS |
@@ -59,9 +59,9 @@ The current dashboard surfaces active variant, p50 / p95 latency, request and er
 
 Full methodology and percentiles in [`latency_report.md`](./latency_report.md). Highlights:
 
-- 100 concurrent requests through `tests/load_test.py` against the running stack (Kafka, ingestor, featurizer, API, MLflow, Prometheus, Grafana, kafka-exporter all live).
-- p50 / p95 / p99 = 236.8 / 255.2 / 256.9 ms — the tight 20 ms spread shows the sklearn `predict_proba` call dominates and the path is essentially constant-time at this batch size.
-- Roughly **3× headroom** on the 800 ms p95 SLO, which leaves room for richer features or a heavier model without breaching the budget.
+- Reference verified local run on `2026-04-23` used 100 concurrent requests through `tests/load_test.py` against the running stack (Kafka, ingestor, featurizer, API, MLflow, Prometheus, Grafana, kafka-exporter all live).
+- p50 / p95 / p99 = 97.4 / 106.4 / 112.5 ms — comfortably under the 800 ms p95 SLO while replay traffic and the runtime bridge are active.
+- The local figures drift depending on concurrent replay activity, so [`latency_report.md`](./latency_report.md) is the canonical reference run for this revision.
 
 ## Uptime / availability
 
@@ -69,7 +69,7 @@ All 9 services reach healthy state after `docker compose up -d`. The load test a
 
 We do not run a long-horizon uptime measurement (this is a coursework deployment, not a 24×7 service), so availability is reported as an **SLO with a recovery contract** rather than a measured number:
 
-- **Target:** 99.0 % monthly success rate on `/health` and `/predict` (≈ 7 h 18 min monthly error budget).
+- **Target:** 99.5 % service availability on `/health` over a 24 h window, with a separate 99 % rolling 5-minute request success-rate SLO for `/predict`.
 - **Mechanism:** every container declares `restart: on-failure`; Kafka and the API both have healthchecks; `depends_on … condition: service_healthy` guarantees correct startup ordering.
 - **Recovery contract:** documented in [`runbook.md`](./runbook.md) — every common failure mode (Kafka volume corruption, ingestor restart loop, bridge retry loop, missing model artifact, Grafana "No data") has a 1-line recovery command and an expected outcome.
 - **Observability hooks:** the Grafana dashboard surfaces error rate per variant, replay lag on both Kafka hops, and API freshness, so the on-call signal arrives before users do.
@@ -94,7 +94,7 @@ MODEL_VARIANT=baseline docker compose up -d api
 curl -s http://localhost:8000/version | jq '.source'   # → "pickle"
 
 MODEL_VARIANT=ml docker compose up -d api
-curl -s http://localhost:8000/version | jq '.source'   # → "mlflow" or "pickle"
+curl -s http://localhost:8000/version | jq '.source'   # → "mlflow" in the normal stack
 ```
 
 The Grafana **Active variant** stat panel (top-left of the API dashboard) flips within ~10 s of the next Prometheus scrape, and `predict_requests_total{model_variant=…}` cleanly partitions traffic by variant for post-hoc analysis.

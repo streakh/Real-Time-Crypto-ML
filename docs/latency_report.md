@@ -6,7 +6,7 @@
 - **Target:** `http://localhost:8000/predict`
 - **Variant:** `MODEL_VARIANT=ml` (sklearn LR pipeline)
 - **Environment:** Apple M2 MacBook Pro, Docker Desktop, all 9 long-running services active (Kafka + ingestor + featurizer + predict-bridge + API + MLflow + Prometheus + Grafana + kafka-exporter).
-- **Run date:** Audited live run on `2026-04-22`
+- **Run date:** Verified live run on `2026-04-23`
 - **Reproduce:**
 
   ```bash
@@ -21,18 +21,18 @@
 | Requests sent | 100 |
 | Succeeded (HTTP 200) | 100 (100 %) |
 | Failed | 0 |
-| Latency p50 | 400.0 ms |
-| Latency p95 | **465.8 ms** |
-| Latency p99 | 482.8 ms |
-| Latency max | 482.8 ms |
+| Latency p50 | 97.4 ms |
+| Latency p95 | **106.4 ms** |
+| Latency p99 | 112.5 ms |
+| Latency max | 112.5 ms |
 
 ## SLO check
 
-p95 SLO target: **≤ 800 ms** → measured **465.8 ms** → **PASS** with ~1.7× headroom.
+p95 SLO target: **≤ 800 ms** → measured **106.4 ms** → **PASS** with comfortable headroom.
 
 ## Notes
 
-- The figures above reflect the audited live run from `2026-04-22`, so they supersede the older lower numbers from earlier local measurements.
-- The tighter clustering between p50 and p99 (~83 ms spread) still reflects a fairly stable ML scoring path under this burst size: a single sklearn `predict_proba` call remains the dominant operation.
+- The figures above reflect the reference verified local run from `2026-04-23`, so they supersede the older numbers from earlier audit passes.
+- The spread between p50 and p99 (~15 ms in this run) reflects a tight local scoring path; the absolute values can still drift depending on how much replay traffic the `predict-bridge` is driving at the same time.
 - The featurizer and ingestor were actively running during the test, so this number reflects realistic contention from the streaming workload, not an idle container.
 - `MODEL_VARIANT=baseline` would be slightly faster (no sklearn call), but was not retested here because the SLO targets the production `ml` variant.

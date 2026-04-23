@@ -24,13 +24,15 @@ If any budget is burned more than 50 % within a 24 h window, the on-call action 
 
 ## Current measured baseline
 
-100-request burst load test, single-row payload, API running locally on M2 MacBook against the in-loop replay pipeline:
+Reference verified local run on `2026-04-23`: 100-request burst load test, one
+feature row per request, API running locally on an M2 MacBook with the replay
+pipeline and `predict-bridge` active in the background.
 
 | Metric | Value | vs SLO |
 |---|---:|:---:|
-| p50 latency | 236.8 ms | within target |
-| p95 latency | 255.2 ms | within target (target 800 ms) |
-| p99 latency | 256.9 ms | n/a |
+| p50 latency | 97.4 ms | within target |
+| p95 latency | 106.4 ms | within target (target 800 ms) |
+| p99 latency | 112.5 ms | n/a |
 | Success rate | 100 % | within target |
 
 Full report: [latency_report.md](latency_report.md).
@@ -45,4 +47,6 @@ The Grafana dashboard "BTC Volatility Detector — API" at http://localhost:3000
 
 - Cold-start latency (model load takes ~2 s; not measured here).
 - WebSocket ingestor uptime — the shipped build runs in replay mode by default, with the live WebSocket ingestor available only under the optional `live` profile.
-- MLflow tracking server availability — non-critical (model is loaded from the on-disk artifact, not from MLflow).
+- MLflow tracking server availability beyond startup — non-critical. The `ml`
+  variant normally loads from MLflow at startup, and the service falls back to
+  the on-disk pickle artifact if the registry is unavailable.

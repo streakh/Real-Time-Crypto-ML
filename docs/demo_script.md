@@ -12,7 +12,7 @@ Open three terminal panes:
 
 - **Left** — compose / docker commands
 - **Top-right** — `curl` and `jq`
-- **Bottom-right** — `docker logs` follows
+- **Bottom-right** — `docker compose logs` follows
 
 And four browser tabs:
 
@@ -32,7 +32,8 @@ docker compose up -d
 docker compose ps
 ```
 
-Point to all 8 services `Up` / `(healthy)`.
+Point to the 9 long-running services `Up`. Also note that `kafka-init` and
+`mlflow-init` are one-shot init services and should be `Exited (0)`.
 
 ---
 
@@ -62,13 +63,13 @@ curl -s http://localhost:8000/metrics | grep predict_request
 ## 1:30 – 2:30 — Replay pipeline is actually streaming
 
 ```bash
-docker logs --tail 5 ingestor
-docker logs --tail 5 featurizer
-docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
-    --broker-list kafka:29092 --topic ticks.raw --time -1
+docker compose logs --tail 5 ingestor
+docker compose logs --tail 5 featurizer
+docker compose exec -T kafka kafka-run-class kafka.tools.GetOffsetShell \
+    --broker-list localhost:9092 --topic ticks.raw --time -1
 sleep 8
-docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
-    --broker-list kafka:29092 --topic ticks.raw --time -1
+docker compose exec -T kafka kafka-run-class kafka.tools.GetOffsetShell \
+    --broker-list localhost:9092 --topic ticks.raw --time -1
 ```
 
 > "Default mode is **replay** — looping a 10-minute Coinbase capture through Kafka at the original timestamps. Reproducible for grading. Offsets clearly growing between the two reads."
@@ -82,14 +83,14 @@ docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
 ```bash
 docker compose stop ingestor
 docker compose --profile live up -d ws-ingestor
-docker logs -f ws-ingestor
+docker compose logs -f ws-ingestor
 ```
 
 Wait for: `[ticker] subscribed for BTC-USD → topic 'ticks.raw'`. `Ctrl-C` the follow.
 
 ```bash
-docker exec kafka kafka-console-consumer \
-    --bootstrap-server kafka:29092 --topic ticks.raw \
+docker compose exec -T kafka kafka-console-consumer \
+    --bootstrap-server localhost:9092 --topic ticks.raw \
     --max-messages 1 --timeout-ms 5000
 ```
 
@@ -121,7 +122,10 @@ Then trigger a spike on camera:
 python tests/load_test.py
 ```
 
-Read result aloud: 100/100 success, p95 ~66 ms. Tie back to [`latency_report.md`](./latency_report.md) and [`slo.md`](./slo.md) — ~12× headroom on the latency SLO.
+Read the live p50 / p95 lines aloud from the terminal instead of using a
+memorized number. Tie them back to [`latency_report.md`](./latency_report.md)
+and [`slo.md`](./slo.md): the current audited run for this repo revision should
+still be comfortably under the 800 ms latency SLO.
 
 ---
 
@@ -180,11 +184,12 @@ Call out, briefly:
 - [`docs/slo.md`](./slo.md), [`latency_report.md`](./latency_report.md), [`drift_summary.md`](./drift_summary.md), [`runbook.md`](./runbook.md) — operational docs.
 - [`handoff/SELECTED_BASE_NOTE.md`](../handoff/SELECTED_BASE_NOTE.md) — model selection rationale (ablation study, Variant B winner).
 - MLflow tab — every training run logged with params, metrics, and the artifact mounted into the API container.
-- CI: GitHub Actions runs Black + Ruff + smoke test on every push.
+- CI: GitHub Actions runs Black + Ruff + the replay smoke test on pushes to
+  `main` and pull requests targeting `main`.
 
 Closing line:
 
-> "End-to-end real-time inference, runs on both replay and live Coinbase data, 100 % success at p95 ≈ 66 ms, model beats the rule-based baseline by ~9 % PR-AUC, and rollback is one env var with sub-10-second propagation. That's the deliverable."
+> "End-to-end real-time inference, runs on both replay and live Coinbase data, stays comfortably under the 800 ms p95 SLO in the reference load test, beats the rule-based baseline by ~9 % PR-AUC, and rolls back with one environment variable in under 10 seconds. That's the deliverable."
 
 ---
 
