@@ -1,6 +1,6 @@
-# Service Level Objectives — BTC Volatility Spike Detector
+# Service Level Objectives for BTC Volatility Spike Detector
 
-These SLOs cover the public-facing prediction API (`api` service) and the streaming pipeline that feeds it. They are aspirational targets, not pass/fail thresholds — their purpose is to make degradation observable in Grafana and give on-call a clear "something is wrong" signal.
+These SLOs cover the public facing prediction API (`api` service) and the streaming pipeline that feeds it. They are aspirational targets, not strict pass or fail thresholds. Their purpose is to make degradation visible in Grafana and give the on call team a clear signal when intervention is needed.
 
 ## SLOs
 
@@ -14,15 +14,15 @@ These SLOs cover the public-facing prediction API (`api` service) and the stream
 | 6 | **Prediction freshness at API** | ≤ 120 s | continuous | `feature_freshness_seconds` |
 | 7 | **Service availability (`/health`)** | ≥ 99.5 % | 24 h | Compose healthcheck on `api` |
 
-## Error budget
+## Error Budget
 
 - **Latency budget:** 5 % of requests / month may exceed 800 ms.
 - **Error budget:** 1 % of requests / month may return 5xx.
 - **Freshness budget:** either replay hop may exceed 200 queued messages for at most 30 min / day, and `feature_freshness_seconds` may exceed 120 s only during active incident response.
 
-If any budget is burned more than 50 % within a 24 h window, the on-call action is to **toggle `MODEL_VARIANT=baseline`** (see [runbook.md](runbook.md)) and investigate before re-enabling the ML variant.
+If any budget is consumed by more than 50% within a 24 hour window, the on call response is to switch `MODEL_VARIANT=baseline` as described in `runbook.md` and investigate before re enabling the ML variant..
 
-## Current measured baseline
+## Current Measured Baseline
 
 Reference verified local run on `2026-04-23`: 100-request burst load test, one
 feature row per request, API running locally on an M2 MacBook with the replay

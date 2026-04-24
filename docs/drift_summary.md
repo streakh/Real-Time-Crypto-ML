@@ -1,5 +1,7 @@
 # Drift Summary
 
+This document summarizes feature drift between the training and test datasets using Evidently. The goal is to identify distribution shifts that may impact model performance in deployment.
+
 > **Note:** This is a snapshot report, not a live-scheduled monitor. Per instructor guidance, a point-in-time Evidently analysis of the train vs. test split is the required deliverable. Continuous drift scheduling is out of scope for this submission.
 
 ## Canonical Drift Report
@@ -14,7 +16,7 @@ The authoritative drift analysis for this project is [`handoff/reports/train_vs_
 - **Drift metric:** Wasserstein distance (normed) for continuous features; Jensen-Shannon distance for the binary `vol_spike` target
 - **Features compared:** 8 (7 model input features + `vol_spike` label)
 
-## Results
+## Key Findings
 
 - **Features with drift:** 3 (`n_ticks_60s`, `spread_mean_60s`, `trade_intensity_60s`)
 - **Share of drifted features:** 37.5% (3 of 8)

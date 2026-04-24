@@ -2,34 +2,30 @@
 
 ## Team Members & Roles
 
-| Member | Primary Role | Responsibilities |
-|--------|-------------|-----------------|
-| Rico Pichardo Abreu  | Model Lead & Improvements | Base model selection, feature engineering improvements, model retraining, handoff folder maintenance |
-| Honey Streak | Infrastructure Lead | FastAPI service, Docker Compose setup, Kafka/MLflow containerization, GitHub repo structure |
-| Swetaleena Guha | Replay Pipeline & Testing | Run 10-minute slice through the pipeline, validate /predict endpoint end-to-end, write test results |
-| Irene John| Docs & Diagrams | team_charter.md, selection_rationale.md, system architecture diagram, model card updates |
+| Member | Primary Role | Core Responsibilities |
+| :--- | :--- | :--- |
+| *Rico Pichardo Abreu* | Model Lead & Ops | Model architecture, CI/CD, Monitoring (Prometheus/Grafana), SLOs, & Drift (M5-M7). |
+| *Honey Streak* | Infrastructure Lead & Ops | FastAPI deployment, Docker Compose, Kafka/MLflow, CI/CD, & System Stability (M5-M7). |
+| *Swetaleena Guha* | Pipeline, Testing & Docs | Replay pipeline execution, integration testing, system documentation, and QA. |
+| *Irene John* | Pipeline, Testing & Docs | Replay pipeline execution, integration testing, system documentation, and QA. |
 
 ---
 
-## Project Goal
-
-Build a real-time crypto volatility detection system that ingests live BTC-USD tick data from Coinbase, engineers windowed features, and serves predictions via a FastAPI endpoint — all orchestrated with Kafka, MLflow, and Docker Compose.
-
----
-
-## Ways of Working
-
-**Communication:** WhatsApp group for async coordination. Tag a teammate if you need a response within 24 hours.
-
-**Code:** All work lives in the shared GitHub repo (`streakh/Real-Time-Crypto-ML`). Push to feature branches; merge to `main` only when the task is complete and tested.
-
-**Decisions:** Majority agreement for significant changes (e.g. switching models, changing feature definitions). One person documents the rationale in `docs/`.
-
-**Blockers:** If blocked for more than a few hours, post in WhatsApp immediately — don't wait until end of day.
+## Project Objectives
+The objective was to engineer a production-ready, real-time AI service for detecting cryptocurrency volatility. The system ingests live BTC-USD tick data, processes features in real-time, serves predictions via a FastAPI endpoint, and ensures observability through Prometheus and Grafana.
 
 ---
 
-## Definition of Done
+## Collaboration Standards
+
+* *Communication:* Managed via WhatsApp for asynchronous coordination and real-time blocker resolution. 
+* *Version Control:* Code was maintained in streakh/Real-Time-Crypto-ML. Development followed a branch-based workflow, with main reserved for tested, production-ready code.
+* *Decision-Making:* Strategic decisions (e.g., model selection, API contract changes) were reached by team consensus, with rationale documented in the /docs directory.
+* *Conflict Resolution:* Issues were addressed openly. The team prioritized respectful discourse, with escalation to the instructor reserved only for blockers that could not be resolved internally.
+
+---
+
+## Definition of Done (Finalized)
 
 - [x] `docker compose up -d` brings up Kafka, MLflow, the API, ingestor, featurizer, Prometheus, Grafana, and kafka-exporter cleanly
 - [x] All four endpoints (`/health`, `/predict`, `/version`, `/metrics`) return valid responses
@@ -52,30 +48,18 @@ Build a real-time crypto volatility detection system that ingests live BTC-USD t
 
 ---
 
-## Decision-Making Process
+## Operational Norms
 
-Decisions are made by consensus based on a majority vote among team members. For significant changes (e.g. switching models, changing feature definitions), the outcome and reasoning should be documented in `docs/` by the person who raised the discussion.
-
----
-
-## Conflict Resolution Plan
-
-- Discuss the issue openly within the team WhatsApp group or in a group call.
-- Respect one another's perspective — every team member's input is valued.
-- If a resolution cannot be reached within the team, escalate to the course instructor.
-
----
-
-## Accountability & Performance
-
-Progress will be tracked based on the weekly action plan outlined in the Canvas assignment. Each team member is responsible for completing their assigned tasks by the deadlines specified there. Any delays or blockers should be flagged in the WhatsApp group as early as possible so the team can adjust.
+* *Transparency:* All AI-assisted development was tracked in docs/genai_appendix.md.
+* *Accountability:* The team maintained strict adherence to the project roadmap, ensuring all weekly milestones were met by the assigned deadlines.
+* *Documentation:* Technical documentation was kept in sync with the codebase. If model versions or feature schemas changed, the corresponding documentation was updated immediately.
+* *Stability:* The team prioritized system stability, ensuring no regression in performance during feature iteration.
 
 ---
 
 ## Tools & Resources
 
-**Tech stack:** Python, Kafka (KRaft), MLflow, Docker
-
-**Platforms:** GitHub (`streakh/Real-Time-Crypto-ML`) for version control, Google Docs for shared writing and planning, WhatsApp for team communication
-
-**Datasets & APIs:** Coinbase Advanced Trade WebSocket API (public market data — BTC-USD ticker feed). No trades are placed.
+* *Tech Stack:* Python, Kafka (KRaft), MLflow, Docker.
+* *Infrastructure:* GitHub (Repository Management), Docker Compose (Orchestration).
+* *Observability:* Prometheus, Grafana, Evidently AI.
+* *Data Source:* Coinbase Advanced Trade WebSocket API (BTC-USD ticker).

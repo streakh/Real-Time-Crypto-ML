@@ -1,40 +1,38 @@
-# Selection Rationale
+# Selection Rationale: Real-Time Crypto Volatility Service
 
-## Problem Overview
-Cryptocurrency markets are highly volatile and can experience sudden spikes in price movements. Detecting volatility spikes in real time is important for risk management, trading strategies, and monitoring market stability.
+## Executive Summary
+This project delivers a production-ready, real-time AI service designed to detect volatility spikes in cryptocurrency markets. By integrating high-throughput data ingestion (Kafka), low-latency inference (FastAPI), and robust operational observability (Prometheus, Grafana, Evidently), the system meets enterprise standards for reliability and performance.
 
-## Why This Problem
-We selected this problem because it combines real time data processing with machine learning based prediction, which aligns well with the objectives of building operational AI systems. It also reflects real world use cases in financial analytics and trading systems.
+## The Problem: Volatility Detection
+Cryptocurrency markets are characterized by high-frequency, non-linear volatility. Accurate detection of these spikes is critical for risk management and automated trading strategies. Our goal was to build a system that achieves:
+* *Sub-second Latency:* Critical for real-time market reactions.
+* *Observability:* Ability to track model drift and system health.
+* *Resilience:* Graceful handling of data streams and service recovery.
 
-## Approach
-Our system uses a machine learning model (Logistic Regression pipeline) trained on engineered features such as log returns, spread, volatility, and trade intensity. The model predicts the probability of a volatility spike.
+## Why This Architecture & Model
+Our technical stack was chosen to balance predictive performance with operational maintainability.
 
-For the interim submission, we implemented:
-- A FastAPI based prediction service
-- Model loading and inference pipeline
-- Replay mode using sample data
-- Core endpoints for health, prediction, versioning, and metrics
+### 1. The Model: Logistic Regression
+We selected a *Logistic Regression pipeline* over more complex deep learning models for the following reasons:
+* *Inference Speed:* Logistic Regression provides sub-millisecond inference times, critical for meeting our p95 ≤ 800ms SLO.
+* *Explainability:* In financial contexts, understanding why a model predicts a spike is as important as the prediction itself. Linear models offer transparent feature coefficients.
+* *Baseline Competence:* It provides a strong, robust baseline that is difficult to overfit, facilitating easier monitoring and drift detection.
 
-## Why This Architecture
-We chose a modular architecture to separate concerns:
-- FastAPI for serving predictions
-- Docker for containerization
-- Replay data for simulating streaming input
-- Prometheus metrics for monitoring
+### 2. The Infrastructure
+* *FastAPI:* Chosen for its asynchronous capabilities, allowing for high-concurrency request handling with minimal overhead.
+* *Kafka/Docker:* A containerized, event-driven architecture ensures that the system is decoupled, scalable, and easy to deploy in any environment.
+* *Monitoring Stack:* We integrated *Prometheus* and *Grafana* for real-time observability, and *Evidently* for automated drift reporting, ensuring the model's performance remains consistent as market conditions evolve.
 
-This design ensures scalability and ease of integration with real time streaming systems like Kafka in future iterations.
+## Key Operational Decisions
+* *Model Versioning:* We implemented MODEL_VARIANT toggling (ml vs. baseline), allowing for instantaneous rollbacks if performance degrades in production.
+* *Observability:* By setting specific SLOs for latency and error rates, the system is designed to trigger alerts before critical failures occur.
+* *CI/CD:* The automated CI pipeline (Black/Ruff/Integration Tests) ensures code quality and prevents regression, a requirement for enterprise-grade deployments.
 
-## Trade-offs
-- We used a simple Logistic Regression model for faster deployment and easier debugging instead of a more complex model.
-- Replay mode is used instead of real time streaming to simplify the initial implementation.
-- Monitoring is basic and will be extended in future versions.
-
-## Future Improvements
-- Integrate Kafka for real time streaming data
-- Use more advanced models such as deep learning or ensemble methods
-- Add MLflow for experiment tracking and model versioning
-- Enhance monitoring with dashboards and alerting systems
-- Improve model accuracy with more features and tuning
+## Future Evolution
+While the current system is production-ready, future iterations will focus on:
+* *Feature Store Integration:* Transitioning from in-memory feature engineering to a dedicated feature store (e.g., Hopsworks or Feast) to reduce computation latency.
+* *Ensemble Methods:* Experimenting with Gradient Boosting (XGBoost/LightGBM) to capture more complex non-linear patterns, using our current Logistic Regression as the baseline challenger.
+* *Advanced Drift Mitigation:* Moving from drift detection to automatic retraining triggers via MLflow and automated pipelines.
 
 ## Conclusion
-This system demonstrates a functional end to end pipeline for deploying a machine learning model as a real time service. The interim version establishes a strong foundation that can be extended into a production grade system.
+This system demonstrates a functional, end-to-end pipeline that transforms raw market data into actionable intelligence. By prioritizing operational excellence alongside machine learning, we have created a service that is both reliable and extensible.

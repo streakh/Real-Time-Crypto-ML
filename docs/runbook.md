@@ -66,7 +66,7 @@ Open dashboards:
 - Grafana: http://localhost:3000 → dashboard "BTC Volatility Detector — API"
 - MLflow: http://localhost:5001
 
-## Smoke test
+## Prediction Test
 
 ```bash
 curl -s http://localhost:8000/version | jq .
@@ -117,7 +117,7 @@ docker compose up -d ingestor
 
 `ws_ingest.py` has exponential-backoff reconnect, a circuit breaker (exits non-zero after 10 consecutive failures so Compose's `restart: on-failure` rebuilds the connection), and sequence-gap logging for feed-integrity monitoring.
 
-## Rollback (ML → baseline)
+## Rollback Strategy
 
 When the ML variant misbehaves (latency burns budget, error spike, drift alert), fall back to the deterministic baseline:
 
@@ -188,8 +188,7 @@ To restore MLflow loading, restart without the override:
 ```bash
 docker compose up -d api
 ```
-
-## Common failures
+## Common Failures and Fixes
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -202,7 +201,7 @@ docker compose up -d api
 | Grafana panels say "No data" | Prometheus hasn't scraped yet, or `api` job is `down` | Visit http://localhost:9090/targets and check the `api` row. If `down`, restart with `docker compose restart prometheus` |
 | Consumer-lag panel empty | `kafka-exporter` not up | `docker compose up -d kafka-exporter`; check logs |
 
-## Recovery
+## Recovery Procedures
 
 **Full reset (loses Kafka data + Grafana dashboards state, keeps source code):**
 
