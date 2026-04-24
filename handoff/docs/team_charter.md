@@ -27,15 +27,24 @@ The objective was to engineer a production-ready, real-time AI service for detec
 
 ## Definition of Done (Finalized)
 
-The project successfully met the following criteria:
+- [x] `docker compose up -d` brings up Kafka, MLflow, the API, ingestor, featurizer, Prometheus, Grafana, and kafka-exporter cleanly
+- [x] All four endpoints (`/health`, `/predict`, `/version`, `/metrics`) return valid responses
+- [x] 10-minute raw slice replayed end-to-end through Kafka → features → API
+- [x] `team_charter.md` and `selection_rationale.md` committed at the repo root
+- [x] Architecture diagram committed to `docs/`
+- [x] No secrets committed to the repo (`.env.example` only)
+- [x] CI pipeline (Black + Ruff + smoke test) passing
+- [x] Grafana dashboard, SLO doc, drift summary, runbook, latency report committed
+- [x] `MODEL_VARIANT=ml|baseline` rollback toggle wired through API + compose
 
-- [x] *Deployment:* docker compose up -d successfully initializes the full stack (Kafka, MLflow, API, Ingestor, Featurizer, and the Monitoring stack).
-- [x] *API Integrity:* All endpoints (/health, /predict, /version, /metrics) are functional and return expected schemas.
-- [x] *Pipeline Verification:* 10-minute replay slice successfully ingested and processed end-to-end.
-- [x] *Documentation:* All required documents (team_charter.md, selection_rationale.md, runbook.md, slo.md) are committed.
-- [x] *Security:* No secrets were hardcoded; .env.example serves as the configuration template.
-- [x] *Quality Assurance:* CI pipeline (Black + Ruff + smoke tests) passes on all PRs.
-- [x] *Operational Readiness:* Grafana dashboard, drift monitoring, and MODEL_VARIANT rollback toggles are fully operational.
+---
+
+## Norms
+
+- We have created a WhatsApp group where the primary conversation will take place. All coordination, updates, and blockers should be communicated there.
+- Be responsive — a short "on it" or "blocked, need help" goes a long way.
+- Don't break `main` — test locally before pushing.
+- If the model numbers change, update the model card — don't leave stale metrics in docs.
 
 ---
 

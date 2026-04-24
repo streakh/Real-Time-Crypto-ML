@@ -1,3 +1,21 @@
+# =============================================================================
+# handoff/docker/compose.yaml — Part 1 handoff artifact (reference only)
+# =============================================================================
+#
+# THIS FILE IS PRESERVED FOR PART 1 REFERENCE / COMPLIANCE ONLY.
+# Do not run `docker compose -f handoff/docker/compose.yaml up -d` in this repo.
+# It was produced during the Part 1 individual assignment and references build
+# contexts and Dockerfiles that existed in the original submission
+# (Dockerfile.ingestor, Dockerfile.mlflow) which are not present in the
+# Part 2 team repo.
+#
+# To run the team project, see the repo root README and run:
+#   cp .env.example .env   # optional: override defaults
+#   docker compose up -d
+# from the repo root, using docker-compose.yaml at the project root.
+# The service definitions below remain only as a historical snapshot.
+# =============================================================================
+
 services:
 
   kafka:

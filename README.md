@@ -11,40 +11,77 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 
 Real time crypto ML service that streams Coinbase style ticks into Kafka, generates rolling window features, and serves predictions via a FastAPI API. The system runs end to end in replay mode with Prometheus and Grafana monitoring, and supports rollback using MODEL_VARIANT.
 
-## Setup
+## Canonical startup
 
 ### Environment
 
 ```bash
-cp .env.example .env
-```
-
-### Start Services
-
-```bash
-docker compose up -d --build
-```
-
-Wait ~30 seconds for Kafka healthcheck to pass.
-
-### Verify Service
-
-```bash
+cp .env.example .env   # optional: override defaults
+docker compose up -d
+# Wait ~30s for Kafka and MLflow init, then:
 curl http://localhost:8000/health
 ```
 
-Expected:
+Use this root README together with the root `docker-compose.yaml` as the only startup guide for the team project.
 
-```json
-{"status":"ok"}
-```
+No manual model registration is required on a fresh clone — a one-shot
+`mlflow-init` container logs the trained pipeline to MLflow and promotes
+it to `Production` automatically, and the `api` gates on that completing.
+See [First-Time Setup in the runbook](docs/runbook.md#first-time-setup)
+for the verification commands and notes on the shared `mlflow-data`
+volume.
 
-### Test Prediction
+## Quick Test
+
+The prediction API boundary is **post-featurization**: `/predict` accepts the seven engineered 60-second features produced by the featurizer, not raw Coinbase tick messages.
+
+> **API schema note:** The `/predict` endpoint accepts the 7 engineered features the model was trained on (see [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md)). This is a post-featurization boundary and differs from the 3-field illustrative example in the assignment spec — per instructor guidance, the schema must match the trained model's features.
 
 ```bash
 curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
+  -H 'Content-Type: application/json' \
   -d @handoff/data_sample/sample.json
+```
+
+The `sample.json` payload contains one feature row (row 1 of `handoff/data_sample/features_slice.csv`):
+
+```json
+{
+  "rows": [{
+    "log_return": 0.0,
+    "spread_bps": 0.0014345986913609724,
+    "vol_60s": 0.0,
+    "mean_return_60s": 0.0,
+    "trade_intensity_60s": 0.016666666666666666,
+    "n_ticks_60s": 1,
+    "spread_mean_60s": 0.010000000009313226,
+    "ts": "2026-04-06T15:02:34.590029Z"
+  }]
+}
+```
+
+Expected response (`ts` is UTC wall-clock at inference time):
+
+```json
+{
+  "scores": [0.10401],
+  "model_variant": "ml",
+  "version": "v1.0",
+  "ts": "YYYY-MM-DDTHH:MM:SS.ffffffZ"
+}
+```
+
+`/version` always returns the same metadata shape, with `stage` and `run_id` set to `null` when the API falls back to the local pickle artifact:
+
+```json
+{
+  "model": "btc-volatility-lr",
+  "version": "v1.0",
+  "stage": "Production",
+  "source": "mlflow",
+  "run_id": "RUN_ID_OR_NULL",
+  "sha": "GIT_SHA"
+}
 ```
 
 The system runs fully in replay mode by default, ensuring reproducibility without external dependencies.
@@ -78,7 +115,7 @@ To switch from the LR model to the deterministic baseline rule:
 
 ```bash
 MODEL_VARIANT=baseline docker compose up -d api
-curl -s http://localhost:8000/version | jq .variant   # → "baseline"
+curl -s http://localhost:8000/version | jq .source   # → "pickle"
 ```
 
 Roll forward with `MODEL_VARIANT=ml docker compose up -d api`. The Grafana **Active variant** panel reflects the change within ~10 s.
@@ -94,7 +131,7 @@ docker/          Dockerfile.api + Dockerfile.worker + requirements files
 monitoring/      prometheus.yml + Grafana provisioning + dashboard JSON
 docs/            Operational docs (see below)
 handoff/         Original team handoff bundle (model, data, reports, rationale)
-docker-compose.yaml   Canonical 8-service stack
+docker-compose.yaml   Canonical compose stack
 config.yaml           Featurizer config
 ```
 
@@ -107,13 +144,24 @@ config.yaml           Featurizer config
 | [`docs/latency_report.md`](docs/latency_report.md) | Load-test methodology and percentiles |
 | [`docs/drift_summary.md`](docs/drift_summary.md) | Evidently train-vs-test drift findings |
 | [`docs/runbook.md`](docs/runbook.md) | Cold start, smoke test, rollback, common failures, recovery |
-| [`handoff/SELECTED_BASE_NOTE.md`](handoff/SELECTED_BASE_NOTE.md) | Model selection rationale (ablation study) |
-| [`handoff/docs/`](handoff/docs/) | Architecture diagram, feature spec, model card, team charter |
+| [`docs/architecture.svg`](docs/architecture.svg) | Canonical system architecture diagram for the team-project stack |
+| [`selection_rationale.md`](selection_rationale.md) | Why the team chose this architecture, API boundary, and model |
+| [`team_charter.md`](team_charter.md) | Team roles, norms, and ways of working |
+| [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md) | Original Part 1 feature definitions and ablation notes |
+| [`handoff/docs/model_card_v1.md`](handoff/docs/model_card_v1.md) | Original Part 1 model card |
+| [`handoff/SELECTED_BASE_NOTE.md`](handoff/SELECTED_BASE_NOTE.md) | Original Part 1 ablation note preserved for reference |
 
 ## Notes on `handoff/`
 
-The `handoff/` folder is the original handoff bundle from the individual assignment — preserved verbatim for provenance. It contains its own `README.md`, `docker/compose.yaml`, and docs. **The canonical compose for running the system is `docker-compose.yaml` at the repo root**, not the one inside `handoff/`.
+The `handoff/` folder preserves the original Part 1 handoff artifacts for reference and compliance. It is not the runtime entrypoint for the Part 2 team project. Do not launch the system from `handoff/README.md` or `handoff/docker/compose.yaml`; use this root README and the root `docker-compose.yaml` instead.
 
 ## CI
 
-GitHub Actions runs Black + Ruff + a smoke test on every push (`.github/workflows/ci.yaml`).
+CI runs lint (Black/Ruff) plus a replay integration smoke test that brings up the full Docker Compose stack inside the GitHub Actions runner. Deeper monitoring validation (Grafana panels, Prometheus scrape correctness, Kafka-exporter lag) is verified locally, not in CI, per instructor guidance.
+
+Specifically, `.github/workflows/ci.yaml` runs two jobs on every push to `main` and on every pull request:
+
+1. **`lint`** — runs `black --check` and `ruff check` across `api/` and `tests/`.
+2. **`integration-replay`** — starts the Docker Compose stack, waits for `/health`, runs `pytest tests/test_replay_integration.py`, and tears down. This is the smoke-level integration gate; comprehensive multi-scenario load testing is validated locally before merge.
+
+The CI does not attempt to reproduce the full production monitoring stack validation (Grafana panels, Prometheus scrape correctness, Kafka-exporter lag) in the GitHub Actions runner — those are covered by the local smoke test documented in [docs/runbook.md](docs/runbook.md).

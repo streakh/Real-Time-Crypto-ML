@@ -7,8 +7,13 @@ via a REST API with /health, /predict, /version, and /metrics endpoints.
 Supports a rollback toggle via MODEL_VARIANT=ml|baseline:
   - ml       (default) — sklearn LR pipeline; score = predict_proba[:, 1]
   - baseline           — deterministic z-style rule on vol_60s vs threshold
+
+Model loading priority (ml variant only):
+  1. MLflow model registry (models:/<MODEL_NAME>/<MODEL_STAGE>)
+  2. Local pickle fallback at MODEL_PATH with a warning log
 """
 
+import logging
 import os
 import pickle
 import subprocess
@@ -16,9 +21,11 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import mlflow
+import mlflow.sklearn
 import numpy as np
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from mlflow.tracking import MlflowClient
 from prometheus_client import (
     Counter,
     Gauge,
@@ -26,7 +33,10 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
+from pydantic import BaseModel, Field
 from starlette.responses import Response
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Config
@@ -35,15 +45,18 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/artifacts/lr_pipeline.pkl")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1.0")
 MODEL_VARIANT = os.getenv("MODEL_VARIANT", "ml").lower()
 BASELINE_VOL_THRESHOLD = float(os.getenv("BASELINE_VOL_THRESHOLD", "0.000048"))
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5001")
+MODEL_NAME = os.getenv("MODEL_NAME", "btc-volatility-lr")
+MODEL_STAGE = os.getenv("MODEL_STAGE", "Production")
 
 if MODEL_VARIANT not in {"ml", "baseline"}:
     raise ValueError(f"MODEL_VARIANT must be 'ml' or 'baseline', got {MODEL_VARIANT!r}")
 
 # ---------------------------------------------------------------------------
-# Load model at startup — only required for MODEL_VARIANT=ml.
-# Baseline must be able to start without the ML artifact, otherwise the
-# rollback path is useless in the exact failure mode it exists to handle
-# (model file missing/corrupt).
+# Model loading — MLflow first, local pickle fallback
+# Baseline variant skips model loading entirely; the fallback path must work
+# even when the ML artifact is missing, since that is the exact failure mode
+# MODEL_VARIANT=baseline exists to handle.
 # ---------------------------------------------------------------------------
 FEATURE_COLS_DEFAULT = [
     "log_return",
@@ -59,17 +72,49 @@ PIPELINE = None
 FEATURE_COLS = FEATURE_COLS_DEFAULT
 TAU: float | None = None
 
+# Module-level variables set by whichever load path succeeds
+model_source: str = "pickle"
+mlflow_run_id: str | None = None
+
 if MODEL_VARIANT == "ml":
-    _model_path = Path(MODEL_PATH)
-    if not _model_path.exists():
-        raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-    with open(_model_path, "rb") as f:
-        _bundle = pickle.load(f)
+    try:
+        # Resolve run_id and feature metadata from the registry
+        _client = MlflowClient(MLFLOW_TRACKING_URI)
+        _versions = _client.get_latest_versions(MODEL_NAME, stages=[MODEL_STAGE])
+        if not _versions:
+            raise LookupError(
+                f"No {MODEL_STAGE} version found for registered model '{MODEL_NAME}'"
+            )
+        mlflow_run_id = _versions[0].run_id
 
-    PIPELINE = _bundle["pipeline"]
-    FEATURE_COLS = _bundle["feature_cols"]
-    TAU = _bundle["tau"]
+        # Load the sklearn pipeline via the sklearn flavor (gives predict_proba)
+        PIPELINE = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/{MODEL_STAGE}")
+
+        # Retrieve feature_cols and tau that were stored as run params
+        _run = _client.get_run(mlflow_run_id)
+        FEATURE_COLS = _run.data.params["feature_cols"].split(",")
+        TAU = float(_run.data.params["tau"])
+
+        model_source = "mlflow"
+        logger.info("Loaded model from MLflow run %s", mlflow_run_id)
+
+    except Exception as _mlflow_exc:
+        logger.warning("MLflow unavailable (%s), falling back to pickle", _mlflow_exc)
+        # Fall back to local pickle bundle
+        _model_path = Path(MODEL_PATH)
+        if not _model_path.exists():
+            raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
+
+        with open(_model_path, "rb") as _f:
+            _bundle = pickle.load(_f)
+
+        PIPELINE = _bundle["pipeline"]
+        FEATURE_COLS = _bundle["feature_cols"]
+        TAU = _bundle["tau"]
+        model_source = "pickle"
+        mlflow_run_id = None
 
 # ---------------------------------------------------------------------------
 # Git SHA (resolved once at startup)
@@ -111,6 +156,13 @@ ACTIVE_VARIANT = Gauge(
     ["model_variant"],
 )
 ACTIVE_VARIANT.labels(model_variant=MODEL_VARIANT).set(1)
+# Tracks how old the feature data is (seconds between feature timestamp and now).
+# Older payloads may omit `ts`, in which case the service falls back to request
+# processing lag as a degraded proxy rather than true feature freshness.
+FEATURE_FRESHNESS = Gauge(
+    "feature_freshness_seconds",
+    "Seconds between the incoming feature row's timestamp and now",
+)
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
@@ -118,26 +170,70 @@ ACTIVE_VARIANT.labels(model_variant=MODEL_VARIANT).set(1)
 
 
 class TickRow(BaseModel):
-    """A single observation with the 7 required features."""
+    """One already-featurized observation sent to `/predict`.
 
-    log_return: float
-    spread_bps: float
-    vol_60s: float
-    mean_return_60s: float
-    trade_intensity_60s: float
-    n_ticks_60s: float
-    spread_mean_60s: float
+    The API boundary is post-featurization: raw Coinbase ticks stay upstream,
+    and the prediction service accepts the engineered 60-second features below.
+    """
+
+    log_return: float = Field(
+        description="Instantaneous log-return vs the previous tick."
+    )
+    spread_bps: float = Field(description="Current bid-ask spread in basis points.")
+    vol_60s: float = Field(
+        description="Rolling 60-second standard deviation of log-returns."
+    )
+    mean_return_60s: float = Field(description="Rolling 60-second mean log-return.")
+    trade_intensity_60s: float = Field(
+        description="Ticks per second over the trailing 60-second window."
+    )
+    n_ticks_60s: float = Field(
+        description="Raw tick count over the trailing 60-second window."
+    )
+    spread_mean_60s: float = Field(
+        description="Rolling 60-second mean absolute spread."
+    )
+    ts: str | None = Field(
+        default=None,
+        description=(
+            "Optional ISO-8601 feature timestamp used to compute "
+            "feature_freshness_seconds."
+        ),
+    )
 
 
 class PredictRequest(BaseModel):
+    """Batch request for already-engineered feature rows."""
+
     rows: list[TickRow]
 
 
 class PredictResponse(BaseModel):
-    scores: list[float]
-    model_variant: str
-    version: str
-    ts: str
+    scores: list[float] = Field(description="Predicted positive-class scores per row.")
+    model_variant: str = Field(
+        description="Active scoring backend: 'ml' or 'baseline'."
+    )
+    version: str = Field(description="Human-readable model bundle version.")
+    ts: str = Field(description="UTC wall-clock timestamp when scoring completed.")
+
+
+class VersionResponse(BaseModel):
+    """Metadata for the model artifact loaded by the API at startup."""
+
+    model: str = Field(description="Registered model name.")
+    version: str = Field(description="Human-readable model bundle version.")
+    stage: str | None = Field(
+        default=None,
+        description="MLflow stage when loaded from the registry; null on pickle fallback.",
+    )
+    source: str = Field(
+        description="Artifact source used at startup: 'mlflow' or 'pickle'."
+    )
+    run_id: str | None = Field(
+        default=None,
+        description="MLflow run ID for the loaded model; null on pickle fallback.",
+    )
+    sha: str = Field(description="Short Git commit SHA for the running service.")
 
 
 # ---------------------------------------------------------------------------
@@ -172,17 +268,18 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/version")
+@app.get("/version", response_model=VersionResponse)
 def version():
-    return {
-        "model": "lr_pipeline",
-        "version": MODEL_VERSION,
-        "variant": MODEL_VARIANT,
-        "sha": GIT_SHA,
-        "tau": TAU,
-        "baseline_vol_threshold": BASELINE_VOL_THRESHOLD,
-        "features": FEATURE_COLS,
-    }
+    """Return the exact metadata shape documented for the deployed model."""
+    # source/stage/run_id reflect whichever load path was taken at startup
+    return VersionResponse(
+        model=MODEL_NAME,
+        version=MODEL_VERSION,
+        stage=MODEL_STAGE if model_source == "mlflow" else None,
+        source=model_source,
+        run_id=mlflow_run_id,
+        sha=GIT_SHA,
+    )
 
 
 @app.get("/metrics")
@@ -195,8 +292,22 @@ def metrics():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
+    """Score engineered feature rows; raw tick ingestion happens upstream."""
     REQUEST_COUNT.labels(model_variant=MODEL_VARIANT).inc()
     start = time.perf_counter()
+
+    # Update feature freshness gauge when the client supplies a feature timestamp.
+    # Without `ts`, the API falls back to request processing lag as a degraded proxy.
+    if req.rows and hasattr(req.rows[0], "ts") and req.rows[0].ts:
+        row_ts = datetime.fromisoformat(req.rows[0].ts.replace("Z", "+00:00"))
+        age = (datetime.now(timezone.utc) - row_ts).total_seconds()
+        FEATURE_FRESHNESS.set(age)
+    else:
+        logger.warning(
+            "feature_freshness_seconds: request row omitted ts — "
+            "setting degraded fallback (request processing lag)"
+        )
+        FEATURE_FRESHNESS.set(time.perf_counter() - start)
 
     try:
         scores = SCORERS[MODEL_VARIANT](req.rows)
