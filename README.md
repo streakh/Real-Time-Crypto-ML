@@ -1,6 +1,8 @@
 
 # BTC Volatility Spike Detector
 
+[![CI](https://github.com/streakh/Real-Time-Crypto-ML/actions/workflows/ci.yaml/badge.svg)](https://github.com/streakh/Real-Time-Crypto-ML/actions/workflows/ci.yaml)
+
 ## Quick Start
 
 ```bash
