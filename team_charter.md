@@ -5,7 +5,7 @@
 | Member | Primary Role | Responsibilities |
 |--------|-------------|-----------------|
 | Rico Pichardo Abreu  | Model Lead & Improvements | Base model selection, feature engineering improvements, model retraining, handoff folder maintenance |
-| Honey Streak | Infrastructure Lead | FastAPI service, Docker Compose setup, Kafka/MLflow containerization, GitHub repo structure |
+| Streak Honey | Infrastructure Lead | FastAPI service, Docker Compose setup, Kafka/MLflow containerization, GitHub repo structure |
 | Swetaleena Guha | Replay Pipeline & Testing | Run 10-minute slice through the pipeline, validate /predict endpoint end-to-end, write test results |
 | Irene John| Docs & Diagrams | team_charter.md, selection_rationale.md, system architecture diagram, model card updates |
 
