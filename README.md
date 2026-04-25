@@ -145,6 +145,7 @@ config.yaml           Featurizer config
 | [`docs/drift_summary.md`](docs/drift_summary.md) | Evidently train-vs-test drift findings |
 | [`docs/runbook.md`](docs/runbook.md) | Cold start, smoke test, rollback, common failures, recovery |
 | [`docs/architecture.svg`](docs/architecture.svg) | Canonical system architecture diagram for the team-project stack |
+| [`docs/grafana_dashboard.png`](docs/grafana_dashboard.png) | Grafana dashboard screenshot for submission evidence |
 | [`selection_rationale.md`](selection_rationale.md) | Why the team chose this architecture, API boundary, and model |
 | [`team_charter.md`](team_charter.md) | Team roles, norms, and ways of working |
 | [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md) | Original Part 1 feature definitions and ablation notes |
