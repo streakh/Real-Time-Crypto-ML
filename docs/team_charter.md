@@ -30,7 +30,7 @@ The objective was to engineer a production-ready, real-time AI service for detec
 - [x] `docker compose up -d` brings up Kafka, MLflow, the API, ingestor, featurizer, Prometheus, Grafana, and kafka-exporter cleanly
 - [x] All four endpoints (`/health`, `/predict`, `/version`, `/metrics`) return valid responses
 - [x] 10-minute raw slice replayed end-to-end through Kafka → features → API
-- [x] `team_charter.md` and `selection_rationale.md` committed at the repo root
+- [x] `team_charter.md` and `selection_rationale.md` committed under `docs/`
 - [x] Architecture diagram committed to `docs/`
 - [x] No secrets committed to the repo (`.env.example` only)
 - [x] CI pipeline (Black + Ruff + smoke test) passing

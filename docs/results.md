@@ -51,7 +51,7 @@ End-to-end check observed during testing:
 
 ## Live dashboard
 
-![Grafana dashboard — BTC Volatility Detector API](../handoff/docs/grafana_dashboard.png)
+![Grafana dashboard — BTC Volatility Detector API](./grafana_dashboard.png)
 
 The current dashboard surfaces active variant, p50 / p95 latency, request and error rate, plus a dedicated replay row for `ticks.raw -> featurizer`, `ticks.features -> predict-bridge`, and API freshness. Dashboard JSON is at [`monitoring/grafana/dashboards/api.json`](../monitoring/grafana/dashboards/api.json).
 

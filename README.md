@@ -3,6 +3,10 @@
 
 [![CI](https://github.com/streakh/Real-Time-Crypto-ML/actions/workflows/ci.yaml/badge.svg)](https://github.com/streakh/Real-Time-Crypto-ML/actions/workflows/ci.yaml)
 
+## Demo video
+
+Team submission walkthrough: [https://youtu.be/3V8JwmRozMQ](https://youtu.be/3V8JwmRozMQ)
+
 ## Quick Start
 
 ```bash
@@ -132,13 +136,12 @@ tests/           Smoke tests (test_api.py) + load test (load_test.py)
 docker/          Dockerfile.api + Dockerfile.worker + requirements files
 monitoring/      prometheus.yml + Grafana provisioning + dashboard JSON
 docs/            Operational docs (see below)
-handoff/         Original team handoff bundle (model, data, reports, rationale)
+handoff/         Original Part 1 handoff bundle (model, data samples, archival docs)
 docker-compose.yaml   Canonical compose stack
 config.yaml           Featurizer config
 ```
 
 ## Documentation
-
 | Doc | Purpose |
 |---|---|
 | [`docs/results.md`](docs/results.md) | Single-page scorecard: latency, success rate, PR-AUC vs baseline, rollback proof |
@@ -146,17 +149,19 @@ config.yaml           Featurizer config
 | [`docs/latency_report.md`](docs/latency_report.md) | Load-test methodology and percentiles |
 | [`docs/drift_summary.md`](docs/drift_summary.md) | Evidently train-vs-test drift findings |
 | [`docs/runbook.md`](docs/runbook.md) | Cold start, smoke test, rollback, common failures, recovery |
-| [`docs/architecture.svg`](docs/architecture.svg) | Canonical system architecture diagram for the team-project stack |
+| [`docs/Architecture Diagram.png`](docs/Architecture%20Diagram.png) | Canonical system architecture diagram for the team-project stack |
+| [`docs/architecture.svg`](docs/architecture.svg) | Earlier simplified diagram (optional reference) |
 | [`docs/grafana_dashboard.png`](docs/grafana_dashboard.png) | Grafana dashboard screenshot for submission evidence |
-| [`selection_rationale.md`](selection_rationale.md) | Why the team chose this architecture, API boundary, and model |
-| [`team_charter.md`](team_charter.md) | Team roles, norms, and ways of working |
+| [`docs/demo_script.md`](docs/demo_script.md) | Recorded demo walkthrough script |
+| [`docs/selection_rationale.md`](docs/selection_rationale.md) | Why the team chose this architecture, API boundary, and model |
+| [`docs/team_charter.md`](docs/team_charter.md) | Team roles, norms, and ways of working |
 | [`handoff/docs/feature_spec.md`](handoff/docs/feature_spec.md) | Original Part 1 feature definitions and ablation notes |
 | [`handoff/docs/model_card_v1.md`](handoff/docs/model_card_v1.md) | Original Part 1 model card |
 | [`handoff/SELECTED_BASE_NOTE.md`](handoff/SELECTED_BASE_NOTE.md) | Original Part 1 ablation note preserved for reference |
 
 ## Notes on `handoff/`
 
-The `handoff/` folder preserves the original Part 1 handoff artifacts for reference and compliance. It is not the runtime entrypoint for the Part 2 team project. Do not launch the system from `handoff/README.md` or `handoff/docker/compose.yaml`; use this root README and the root `docker-compose.yaml` instead.
+The `handoff/` folder preserves the original Part 1 handoff artifacts for reference and compliance (feature spec, model card, selected-base note, packaged data, and artifacts). Canonical team-project narrative docs — charter, selection rationale, architecture image, runbook, SLOs, drift summary, and results — live under `docs/`. It is not the runtime entrypoint for the Part 2 team project. Do not launch the system from `handoff/README.md` or `handoff/docker/compose.yaml`; use this root README and the root `docker-compose.yaml` instead.
 
 ## CI
 

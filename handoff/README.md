@@ -18,10 +18,11 @@ Use the root [`README.md`](../README.md) and root
 replay vs live mode, and rollback instructions. Do not run
 `handoff/docker/compose.yaml` for the team project.
 
-The canonical team-project architecture diagram now lives at
-[`../docs/architecture.svg`](../docs/architecture.svg). The copy at
-[`handoff/docs/architecture.svg`](docs/architecture.svg) is retained here for
-historical provenance alongside the original Part 1 handoff materials.
+The canonical team-project architecture diagram lives at
+[`../docs/Architecture Diagram.png`](../docs/Architecture%20Diagram.png)
+(supplemental simplified SVG:
+[`../docs/architecture.svg`](../docs/architecture.svg)).
+Historical Part 1–only materials remain under `handoff/docs/`.
 
 ## Model Selection: Selected-Base
 
